@@ -62,6 +62,24 @@ describe('supabase storage mapping', () => {
     expect(transactionFromRow(row)).toEqual(transaction);
   });
 
+  it('maps savings transactions between app data and Supabase rows', () => {
+    const transaction: Transaction = {
+      id: 'tx-saving',
+      type: 'savings',
+      categoryId: 'savings',
+      amount: 2500,
+      date: '2026-05-10',
+      note: 'เงินสำรอง',
+      createdAt: '2026-05-10T02:00:00.000Z',
+      updatedAt: '2026-05-10T02:00:00.000Z',
+    };
+
+    const row = transactionToRow(transaction, 'user-1');
+
+    expect(row.type).toBe('savings');
+    expect(transactionFromRow(row)).toEqual(transaction);
+  });
+
   it('normalizes remote data with default settings', () => {
     const data = normalizeRemoteAppData({
       categories: defaultAppData.categories,

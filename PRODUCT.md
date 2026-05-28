@@ -1,13 +1,13 @@
 ---
-name: Money Flow
+name: NinJahMajod
 register: product
 ---
 
-# Money Flow Product Context
+# NinJahMajod Product Context
 
 ## Product Purpose
 
-Money Flow is a local-first personal income and expense tracker for one person who wants quick clarity without a spreadsheet. The app helps users record transactions, keep categories and monthly budgets tidy, and understand monthly or yearly cash flow at a glance.
+NinJahMajod is a local-first personal income and expense tracker for one person who wants quick clarity without a spreadsheet. The app helps users record transactions, keep categories and monthly budgets tidy, and understand monthly or yearly cash flow at a glance.
 
 ## Users
 

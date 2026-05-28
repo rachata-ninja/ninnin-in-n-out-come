@@ -68,6 +68,14 @@ export function TransactionForm({ categories, onSubmit }: Props) {
         >
           รายรับ
         </button>
+        <button
+          type="button"
+          className={type === 'savings' ? 'active' : ''}
+          aria-pressed={type === 'savings'}
+          onClick={() => handleTypeChange('savings')}
+        >
+          ออมเงิน
+        </button>
       </div>
 
       <label>

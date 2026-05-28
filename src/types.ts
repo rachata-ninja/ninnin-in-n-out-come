@@ -1,6 +1,6 @@
-export type TransactionType = "income" | "expense";
+export type TransactionType = "income" | "expense" | "savings";
 export type CategoryType = TransactionType | "both";
-export type PeriodType = "month" | "year";
+export type PeriodType = "day" | "month" | "year";
 
 export type Transaction = {
   id: string;
@@ -38,6 +38,7 @@ export type PeriodFilter = {
   type: PeriodType;
   year: number;
   month: number;
+  day?: number;
 };
 
 export type TransactionInput = {

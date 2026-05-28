@@ -160,6 +160,16 @@ export async function deleteRemoteTransaction(
   );
 }
 
+export async function deleteRemoteCategory(
+  client: SupabaseClient,
+  userId: string,
+  categoryId: string,
+): Promise<void> {
+  await deleteRows(
+    client.from('categories').delete().eq('user_id', userId).eq('id', categoryId),
+  );
+}
+
 async function upsertRemoteCategories(
   client: SupabaseClient,
   userId: string,

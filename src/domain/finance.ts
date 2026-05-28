@@ -3,6 +3,7 @@ import type { Category, PeriodFilter, Transaction, TransactionInput, Transaction
 export type Totals = {
   income: number;
   expense: number;
+  savings: number;
   balance: number;
 };
 
@@ -38,7 +39,9 @@ export function filterTransactionsByPeriod(
     const date = new Date(`${transaction.date}T00:00:00`);
     const yearMatches = date.getFullYear() === filter.year;
     if (filter.type === 'year') return yearMatches;
-    return yearMatches && date.getMonth() + 1 === filter.month;
+    const monthMatches = date.getMonth() + 1 === filter.month;
+    if (filter.type === 'month') return yearMatches && monthMatches;
+    return yearMatches && monthMatches && date.getDate() === filter.day;
   });
 }
 
@@ -47,14 +50,16 @@ export function calculateTotals(transactions: Transaction[]): Totals {
     (totals, transaction) => {
       if (transaction.type === 'income') {
         totals.income += transaction.amount;
-      } else {
+      } else if (transaction.type === 'expense') {
         totals.expense += transaction.amount;
+      } else {
+        totals.savings += transaction.amount;
       }
 
-      totals.balance = totals.income - totals.expense;
+      totals.balance = totals.income - totals.expense - totals.savings;
       return totals;
     },
-    { income: 0, expense: 0, balance: 0 },
+    { income: 0, expense: 0, savings: 0, balance: 0 },
   );
 }
 
@@ -100,7 +105,8 @@ export function calculateBudgetUsage(
   const expenseTotals = groupTransactionsByCategory(transactions, categories, 'expense');
 
   return categories
-    .filter((category) => category.type !== 'income' && typeof category.monthlyBudget === 'number')
+    .filter((category) => category.isActive)
+    .filter((category) => (category.type === 'expense' || category.type === 'both') && typeof category.monthlyBudget === 'number')
     .map((category) => {
       const usage = expenseTotals.find((total) => total.category.id === category.id);
       const amount = usage?.amount ?? 0;

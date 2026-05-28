@@ -21,4 +21,21 @@ describe('TransactionForm', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('กรุณาเลือกหมวดหมู่');
     expect(screen.getByRole('alert')).toHaveTextContent('จำนวนเงินต้องมากกว่า 0');
   });
+
+  it('lets users record savings with savings categories', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<TransactionForm categories={defaultCategories} onSubmit={onSubmit} />);
+
+    await user.click(screen.getByRole('button', { name: 'ออมเงิน' }));
+    await user.selectOptions(screen.getByLabelText('หมวดหมู่'), screen.getByRole('option', { name: 'เงินออม' }));
+    await user.type(screen.getByLabelText('จำนวนเงิน'), '2500');
+    await user.click(screen.getByRole('button', { name: 'เพิ่มรายการ' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'savings',
+      categoryId: 'savings',
+      amount: 2500,
+    }));
+  });
 });

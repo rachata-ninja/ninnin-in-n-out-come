@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultAppData } from './data/defaultData';
 import App from './App';
@@ -47,6 +48,7 @@ describe('App Supabase flow', () => {
   });
 
   it('loads remote data when a Supabase session exists', async () => {
+    const user = userEvent.setup();
     const session = {
       user: { id: 'user-1', email: 'demo@example.com' },
     };
@@ -74,5 +76,10 @@ describe('App Supabase flow', () => {
 
     expect(await screen.findByText('demo@example.com')).toBeInTheDocument();
     expect(mocks.loadRemoteAppData).toHaveBeenCalledWith(mocks.client, 'user-1');
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+
+    expect(screen.getByRole('heading', { name: 'Supabase account' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'ออกจากระบบ' }).length).toBeGreaterThan(0);
   });
 });

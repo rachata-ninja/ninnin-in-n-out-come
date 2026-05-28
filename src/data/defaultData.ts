@@ -3,6 +3,7 @@ import type { AppData, Category, Transaction } from '../types';
 export const defaultCategories: Category[] = [
   { id: 'salary', name: 'เงินเดือน', type: 'income', color: '#15803d', isActive: true },
   { id: 'other-income', name: 'รายได้อื่น', type: 'income', color: '#0f766e', isActive: true },
+  { id: 'savings', name: 'เงินออม', type: 'savings', color: '#0f766e', isActive: true },
   {
     id: 'food',
     name: 'ค่าอาหาร',

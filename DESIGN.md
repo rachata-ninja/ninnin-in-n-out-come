@@ -1,5 +1,5 @@
 ---
-name: Money Flow
+name: NinJahMajod
 description: Local-first Thai personal finance tracker with calm task-focused reporting.
 colors:
   ink: "#172033"
@@ -84,17 +84,18 @@ components:
     height: "46px"
 ---
 
-# Design System: Money Flow
+# Design System: NinJahMajod
 
 ## 1. Overview
 
 **Creative North Star: "The Personal Ledger Desk"**
 
-Money Flow should feel like a clear desk with a reliable ledger open: quiet, structured, and ready for repeated use. The interface serves fast data entry and financial review, not brand spectacle.
+NinJahMajod should feel like a clear desk with a reliable ledger open: quiet, structured, and ready for repeated use. The interface serves fast data entry and financial review, not brand spectacle.
 
 The product is restrained but no longer monochrome. Dark surfaces are reserved for navigation, primary commands use clear blue, and content panels use soft semantic washes to guide the eye without turning the app into decoration.
 
 **Key Characteristics:**
+
 - Local-first, private, and practical.
 - Dense enough for daily use, but never cramped below 46px primary control height.
 - Thai workflow copy, predictable product UI patterns, and minimal decoration.
@@ -105,10 +106,12 @@ The product is restrained but no longer monochrome. Dark surfaces are reserved f
 The palette is a restrained product palette with more visible color: tinted neutral surfaces, one clear blue action color, and semantic report colors.
 
 ### Primary
+
 - **Action Blue**: the primary action and active input/interaction color. Use it when the user is committing work.
 - **Ledger Ink**: strongest page text and dark navigation context.
 
 ### Secondary
+
 - **Income Green**: successful inflow values and income bars.
 - **Expense Red**: outgoing money, warnings, delete actions, and expense bars.
 - **Balance Blue**: remaining balance and neutral financial emphasis.
@@ -116,6 +119,7 @@ The palette is a restrained product palette with more visible color: tinted neut
 - **Violet Wash**: category breakdown panels where multiple category colors appear.
 
 ### Neutral
+
 - **Paper Surface**: content panels and form fields.
 - **Soft Page**: app background that separates panels without decoration.
 - **Divider Line**: borders, table rules, and quiet separation.
@@ -137,6 +141,7 @@ The palette is a restrained product palette with more visible color: tinted neut
 **Character:** Native, practical, and dense. Type should help users scan money, categories, and dates without calling attention to itself.
 
 ### Hierarchy
+
 - **Display** (800, 2.6rem desktop / 1.8rem mobile, 1.1): page titles only.
 - **Title** (800, 1.1rem, 1.3): panel headings and settings cards.
 - **Body** (400, 1rem, 1.5): descriptions, table cells, and form values.
@@ -148,9 +153,10 @@ The palette is a restrained product palette with more visible color: tinted neut
 
 ## 4. Elevation
 
-Money Flow uses tonal layering plus a very light ambient shadow. Depth is structural: panels sit on the page background, navigation sits in a dark rail, and interactive elements shift subtly on hover.
+NinJahMajod uses tonal layering plus a very light ambient shadow. Depth is structural: panels sit on the page background, navigation sits in a dark rail, and interactive elements shift subtly on hover.
 
 ### Shadow Vocabulary
+
 - **Surface Hairline** (`0 1px 2px rgb(15 23 42 / 0.04)`): default panel and metric elevation only.
 
 ### Named Rules
@@ -160,6 +166,7 @@ Money Flow uses tonal layering plus a very light ambient shadow. Depth is struct
 ## 5. Components
 
 ### Buttons
+
 - **Shape:** gently curved rectangle (8px) with one shared control height.
 - **Primary:** Action Blue background with Paper Surface text, 46px minimum height, 136px default minimum width.
 - **Secondary:** soft blue background with Action Blue text.
@@ -168,10 +175,12 @@ Money Flow uses tonal layering plus a very light ambient shadow. Depth is struct
 - **Icon Buttons:** square 46px target.
 
 ### Chips
+
 - **Style:** small rounded semantic pills for transaction type and category status.
 - **State:** income/status active use green tint; expense/inactive use red tint.
 
 ### Cards / Containers
+
 - **Corner Style:** 8px radius.
 - **Background:** Paper Surface on Soft Page.
 - **Shadow Strategy:** Surface Hairline only.
@@ -179,16 +188,19 @@ Money Flow uses tonal layering plus a very light ambient shadow. Depth is struct
 - **Internal Padding:** 20px panels, 16px dense grids.
 
 ### Inputs / Fields
+
 - **Style:** Paper Surface, 1px Control Border, 8px radius, 46px minimum height.
 - **Focus:** visible outline with blue-tinted ring.
 - **Error / Disabled:** errors appear inline or in alert regions; disabled controls remain visible but subdued.
 
 ### Navigation
+
 - **Desktop:** dark side rail with icon and text labels.
 - **Mobile:** compact top rail with icon buttons, each retaining an accessible name.
 - **Active State:** dark raised navigation item with clear contrast.
 
 ### Financial Charts
+
 - **Trend:** compact paired bar chart with income/expense legend and screen-reader table.
 - **Category Breakdown:** conic category chart with adjacent legend.
 - **Budgets:** progress bars must expose progressbar semantics and visible percentages.
@@ -196,6 +208,7 @@ Money Flow uses tonal layering plus a very light ambient shadow. Depth is struct
 ## 6. Do's and Don'ts
 
 ### Do:
+
 - **Do** keep all primary controls at 46px height and all touch targets at least 44px.
 - **Do** provide a text equivalent for every chart.
 - **Do** keep mobile entry single-column and full-width.
@@ -203,6 +216,7 @@ Money Flow uses tonal layering plus a very light ambient shadow. Depth is struct
 - **Do** use soft full-panel washes for analytics/settings grouping when color improves scanning.
 
 ### Don't:
+
 - **Don't** make it feel like a marketing landing page.
 - **Don't** use decorative finance clichés such as navy-and-gold luxury styling, gradient hero metrics, or glassmorphism.
 - **Don't** hide core functionality on mobile.

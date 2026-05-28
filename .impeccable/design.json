@@ -1,44 +1,98 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-05-28T10:06:00.000Z",
-  "title": "Design System: Money Flow",
+  "title": "Design System: NinJahMajod",
   "extensions": {
     "colorMeta": {
       "ink": {
         "role": "primary",
         "displayName": "Ledger Ink",
         "canonical": "#172033",
-        "tonalRamp": ["#0f172a", "#172033", "#273449", "#3f4d63", "#64748b", "#94a3b8", "#cbd5e1", "#f1f5f9"]
+        "tonalRamp": [
+          "#0f172a",
+          "#172033",
+          "#273449",
+          "#3f4d63",
+          "#64748b",
+          "#94a3b8",
+          "#cbd5e1",
+          "#f1f5f9"
+        ]
       },
       "primary": {
         "role": "primary",
         "displayName": "Action Blue",
         "canonical": "#2563eb",
-        "tonalRamp": ["#172554", "#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#93c5fd", "#dbeafe", "#eff6ff"]
+        "tonalRamp": [
+          "#172554",
+          "#1e3a8a",
+          "#1d4ed8",
+          "#2563eb",
+          "#3b82f6",
+          "#93c5fd",
+          "#dbeafe",
+          "#eff6ff"
+        ]
       },
       "income": {
         "role": "secondary",
         "displayName": "Income Green",
         "canonical": "#15803d",
-        "tonalRamp": ["#052e16", "#14532d", "#15803d", "#16a34a", "#22c55e", "#86efac", "#dcfce7", "#f0fdf4"]
+        "tonalRamp": [
+          "#052e16",
+          "#14532d",
+          "#15803d",
+          "#16a34a",
+          "#22c55e",
+          "#86efac",
+          "#dcfce7",
+          "#f0fdf4"
+        ]
       },
       "expense": {
         "role": "secondary",
         "displayName": "Expense Red",
         "canonical": "#dc2626",
-        "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#dc2626", "#ef4444", "#fca5a5", "#fee2e2", "#fef2f2"]
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#dc2626",
+          "#ef4444",
+          "#fca5a5",
+          "#fee2e2",
+          "#fef2f2"
+        ]
       },
       "balance": {
         "role": "secondary",
         "displayName": "Balance Blue",
         "canonical": "#1d4ed8",
-        "tonalRamp": ["#172554", "#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#93c5fd", "#dbeafe", "#eff6ff"]
+        "tonalRamp": [
+          "#172554",
+          "#1e3a8a",
+          "#1d4ed8",
+          "#2563eb",
+          "#3b82f6",
+          "#93c5fd",
+          "#dbeafe",
+          "#eff6ff"
+        ]
       },
       "surface": {
         "role": "neutral",
         "displayName": "Paper Surface",
         "canonical": "#ffffff",
-        "tonalRamp": ["#172033", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f6f7f9", "#ffffff"]
+        "tonalRamp": [
+          "#172033",
+          "#475569",
+          "#64748b",
+          "#94a3b8",
+          "#cbd5e1",
+          "#e2e8f0",
+          "#f6f7f9",
+          "#ffffff"
+        ]
       }
     },
     "typographyMeta": {
@@ -124,7 +178,7 @@
   ],
   "narrative": {
     "northStar": "The Personal Ledger Desk",
-      "overview": "Money Flow should feel like a clear desk with a reliable ledger open: quiet, structured, and ready for repeated use. The interface now uses a more colorful but semantic product palette: blue actions, money-state colors, and pale full-panel washes.",
+    "overview": "NinJahMajod should feel like a clear desk with a reliable ledger open: quiet, structured, and ready for repeated use. The interface now uses a more colorful but semantic product palette: blue actions, money-state colors, and pale full-panel washes.",
     "keyCharacteristics": [
       "Local-first, private, and practical.",
       "Dense enough for daily use, but never cramped below 46px primary control height.",

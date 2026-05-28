@@ -42,6 +42,13 @@ const categories: Category[] = [
     monthlyBudget: 1000,
     isActive: false,
   },
+  {
+    id: 'emergency-saving',
+    name: 'เงินสำรอง',
+    type: 'savings',
+    color: '#0f766e',
+    isActive: true,
+  },
 ];
 
 const transactions: Transaction[] = [
@@ -85,14 +92,25 @@ const transactions: Transaction[] = [
     createdAt: '2026-06-02T04:00:00.000Z',
     updatedAt: '2026-06-02T04:00:00.000Z',
   },
+  {
+    id: 't5',
+    type: 'savings',
+    categoryId: 'emergency-saving',
+    amount: 2500,
+    date: '2026-05-04',
+    note: '',
+    createdAt: '2026-05-04T05:00:00.000Z',
+    updatedAt: '2026-05-04T05:00:00.000Z',
+  },
 ];
 
 describe('finance domain', () => {
-  it('calculates income, expense, and balance', () => {
+  it('calculates income, expense, savings, and balance', () => {
     expect(calculateTotals(transactions)).toEqual({
       income: 30000,
       expense: 7700,
-      balance: 22300,
+      savings: 2500,
+      balance: 19800,
     });
   });
 
@@ -103,7 +121,18 @@ describe('finance domain', () => {
       month: 5,
     });
 
-    expect(result.map((transaction) => transaction.id)).toEqual(['t1', 't2', 't3']);
+    expect(result.map((transaction) => transaction.id)).toEqual(['t1', 't2', 't3', 't5']);
+  });
+
+  it('filters transactions by day when a daily dashboard view is selected', () => {
+    const result = filterTransactionsByPeriod(transactions, {
+      type: 'day',
+      year: 2026,
+      month: 5,
+      day: 2,
+    });
+
+    expect(result.map((transaction) => transaction.id)).toEqual(['t2']);
   });
 
   it('filters transactions by year', () => {
@@ -113,7 +142,7 @@ describe('finance domain', () => {
       month: 1,
     });
 
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(5);
   });
 
   it('groups expenses by category and keeps old inactive categories reportable', () => {
@@ -164,6 +193,12 @@ describe('finance domain', () => {
     expect(result).not.toContain('inactive-snack');
   });
 
+  it('selects active savings categories for savings transactions', () => {
+    const result = getSelectableCategories(categories, 'savings').map((category) => category.id);
+
+    expect(result).toEqual(['emergency-saving']);
+  });
+
   it('calculates budget usage by expense category', () => {
     const result = calculateBudgetUsage(transactions, categories);
 
@@ -173,6 +208,12 @@ describe('finance domain', () => {
       remaining: 500,
       percentUsed: 94,
     });
+  });
+
+  it('excludes inactive categories from budget usage', () => {
+    const result = calculateBudgetUsage(transactions, categories);
+
+    expect(result.map((item) => item.category.id)).not.toContain('inactive-snack');
   });
 
   it('validates transaction input amount, category, and date', () => {
