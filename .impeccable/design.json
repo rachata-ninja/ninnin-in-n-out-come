@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-28T10:06:00.000Z",
+  "title": "Design System: Money Flow",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Ledger Ink",
+        "canonical": "#172033",
+        "tonalRamp": ["#0f172a", "#172033", "#273449", "#3f4d63", "#64748b", "#94a3b8", "#cbd5e1", "#f1f5f9"]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Action Blue",
+        "canonical": "#2563eb",
+        "tonalRamp": ["#172554", "#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#93c5fd", "#dbeafe", "#eff6ff"]
+      },
+      "income": {
+        "role": "secondary",
+        "displayName": "Income Green",
+        "canonical": "#15803d",
+        "tonalRamp": ["#052e16", "#14532d", "#15803d", "#16a34a", "#22c55e", "#86efac", "#dcfce7", "#f0fdf4"]
+      },
+      "expense": {
+        "role": "secondary",
+        "displayName": "Expense Red",
+        "canonical": "#dc2626",
+        "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#dc2626", "#ef4444", "#fca5a5", "#fee2e2", "#fef2f2"]
+      },
+      "balance": {
+        "role": "secondary",
+        "displayName": "Balance Blue",
+        "canonical": "#1d4ed8",
+        "tonalRamp": ["#172554", "#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#93c5fd", "#dbeafe", "#eff6ff"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Paper Surface",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#172033", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f6f7f9", "#ffffff"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page titles only."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descriptions, table cells, and form values."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels, metric labels, and helper labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "surface-hairline",
+        "value": "0 1px 2px rgb(15 23 42 / 0.04)",
+        "purpose": "Default panel and metric elevation only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-ease",
+        "value": "180ms ease-out",
+        "purpose": "Default state transitions for buttons and interactive rows."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "560px"
+      },
+      {
+        "name": "tablet",
+        "value": "920px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary commit action for forms and exports.",
+      "html": "<button class=\"ds-btn-primary\">เพิ่มรายการ</button>",
+      "css": ".ds-btn-primary { min-height: 46px; min-width: 136px; border: 0; border-radius: 8px; padding: 0 16px; background: #2563eb; color: #ffffff; font-weight: 750; transition: background-color 180ms ease-out, transform 180ms ease-out; } .ds-btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 3px solid rgb(29 78 216 / 0.38); outline-offset: 2px; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Standard form field for amount, date, note, and category inputs.",
+      "html": "<label class=\"ds-field\">จำนวนเงิน<input value=\"120\" /></label>",
+      "css": ".ds-field { display: grid; gap: 6px; color: #475569; font-size: 0.9rem; font-weight: 650; } .ds-field input { min-height: 46px; border: 1px solid #d6dce6; border-radius: 8px; padding: 0 12px; background: #ffffff; color: #172033; font: inherit; } .ds-field input:focus-visible { outline: 3px solid rgb(29 78 216 / 0.38); outline-offset: 2px; }"
+    },
+    {
+      "name": "Panel Card",
+      "kind": "card",
+      "refersTo": "card-panel",
+      "description": "Default container for dashboard sections, forms, and settings actions.",
+      "html": "<article class=\"ds-panel\"><h2>รายจ่ายตามหมวด</h2><p>ค่าอาหาร ฿180</p></article>",
+      "css": ".ds-panel { border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; color: #172033; padding: 20px; box-shadow: 0 1px 2px rgb(15 23 42 / 0.04); } .ds-panel h2 { margin: 0 0 16px; font-size: 1.1rem; } .ds-panel p { margin: 0; color: #475569; }"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Dark rail navigation item with active state.",
+      "html": "<button class=\"ds-nav-item ds-nav-item-active\">Dashboard</button>",
+      "css": ".ds-nav-item { min-height: 46px; width: 100%; border: 0; border-radius: 8px; padding: 12px; background: transparent; color: #cbd5e1; text-align: left; font-weight: 650; } .ds-nav-item-active, .ds-nav-item:hover { background: #1f2937; color: #ffffff; } .ds-nav-item-active { box-shadow: inset 0 0 0 1px rgb(96 165 250 / 0.24); } .ds-nav-item:focus-visible { outline: 3px solid rgb(29 78 216 / 0.38); outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "chip-status",
+      "description": "Compact status marker for transaction type and category state.",
+      "html": "<span class=\"ds-pill-income\">รายรับ</span>",
+      "css": ".ds-pill-income { display: inline-flex; border-radius: 999px; padding: 4px 8px; background: #dcfce7; color: #166534; font-size: 0.8rem; font-weight: 800; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Personal Ledger Desk",
+      "overview": "Money Flow should feel like a clear desk with a reliable ledger open: quiet, structured, and ready for repeated use. The interface now uses a more colorful but semantic product palette: blue actions, money-state colors, and pale full-panel washes.",
+    "keyCharacteristics": [
+      "Local-first, private, and practical.",
+      "Dense enough for daily use, but never cramped below 46px primary control height.",
+      "Thai workflow copy, predictable product UI patterns, and minimal decoration.",
+      "Charts must have textual equivalents; visual color is never the only source of meaning."
+    ],
+    "rules": [
+      {
+        "name": "The Semantic Money Rule",
+        "body": "Green, red, and blue are reserved for income, expense, and balance. Blue also owns primary actions through the Action Blue token.",
+        "section": "colors"
+      },
+      {
+        "name": "The Soft Wash Rule",
+        "body": "Color may tint a whole panel or state, never a side stripe. Washes must stay pale enough for dark text and charts.",
+        "section": "colors"
+      },
+      {
+        "name": "The Task Typography Rule",
+        "body": "Do not use display fonts, gradient text, or letter-spaced labels. Product clarity wins over personality.",
+        "section": "typography"
+      },
+      {
+        "name": "The Low Lift Rule",
+        "body": "Surfaces are almost flat. If a shadow is visible before the border is visible, it is too strong.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep all primary controls at 46px height and all touch targets at least 44px.",
+      "Do provide a text equivalent for every chart.",
+      "Do keep mobile entry single-column and full-width.",
+      "Do confirm destructive actions before changing local data.",
+      "Do use soft full-panel washes for analytics/settings grouping when color improves scanning."
+    ],
+    "donts": [
+      "Don't make it feel like a marketing landing page.",
+      "Don't use decorative finance clichés such as navy-and-gold luxury styling, gradient hero metrics, or glassmorphism.",
+      "Don't hide core functionality on mobile.",
+      "Don't use side-stripe borders, gradient text, or decorative blur effects.",
+      "Don't introduce cloud/account concepts into v1 screens."
+    ]
+  }
+}

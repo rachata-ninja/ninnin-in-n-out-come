@@ -1,0 +1,115 @@
+import type { AppData, Category, Transaction } from '../types';
+
+export const defaultCategories: Category[] = [
+  { id: 'salary', name: 'เงินเดือน', type: 'income', color: '#15803d', isActive: true },
+  { id: 'other-income', name: 'รายได้อื่น', type: 'income', color: '#0f766e', isActive: true },
+  {
+    id: 'food',
+    name: 'ค่าอาหาร',
+    type: 'expense',
+    color: '#ea580c',
+    monthlyBudget: 6000,
+    isActive: true,
+  },
+  {
+    id: 'rent',
+    name: 'ค่าห้อง',
+    type: 'expense',
+    color: '#2563eb',
+    monthlyBudget: 8000,
+    isActive: true,
+  },
+  {
+    id: 'snack',
+    name: 'ขนม',
+    type: 'expense',
+    color: '#db2777',
+    monthlyBudget: 1500,
+    isActive: true,
+  },
+  {
+    id: 'seven',
+    name: 'เซเว่น',
+    type: 'expense',
+    color: '#65a30d',
+    monthlyBudget: 2500,
+    isActive: true,
+  },
+  {
+    id: 'transport',
+    name: 'เดินทาง',
+    type: 'expense',
+    color: '#7c3aed',
+    monthlyBudget: 3000,
+    isActive: true,
+  },
+  {
+    id: 'health',
+    name: 'สุขภาพ',
+    type: 'expense',
+    color: '#dc2626',
+    monthlyBudget: 2000,
+    isActive: true,
+  },
+  {
+    id: 'household',
+    name: 'ของใช้',
+    type: 'expense',
+    color: '#475569',
+    monthlyBudget: 2500,
+    isActive: true,
+  },
+];
+
+export const defaultTransactions: Transaction[] = [
+  {
+    id: 'demo-income-1',
+    type: 'income',
+    categoryId: 'salary',
+    amount: 35000,
+    date: '2026-05-01',
+    note: 'เงินเดือน',
+    createdAt: '2026-05-01T02:00:00.000Z',
+    updatedAt: '2026-05-01T02:00:00.000Z',
+  },
+  {
+    id: 'demo-rent-1',
+    type: 'expense',
+    categoryId: 'rent',
+    amount: 7500,
+    date: '2026-05-02',
+    note: 'ค่าห้อง',
+    createdAt: '2026-05-02T02:00:00.000Z',
+    updatedAt: '2026-05-02T02:00:00.000Z',
+  },
+  {
+    id: 'demo-food-1',
+    type: 'expense',
+    categoryId: 'food',
+    amount: 180,
+    date: '2026-05-03',
+    note: 'ข้าวกลางวัน',
+    createdAt: '2026-05-03T02:00:00.000Z',
+    updatedAt: '2026-05-03T02:00:00.000Z',
+  },
+  {
+    id: 'demo-seven-1',
+    type: 'expense',
+    categoryId: 'seven',
+    amount: 95,
+    date: '2026-05-04',
+    note: 'กาแฟและน้ำดื่ม',
+    createdAt: '2026-05-04T02:00:00.000Z',
+    updatedAt: '2026-05-04T02:00:00.000Z',
+  },
+];
+
+export const defaultAppData: AppData = {
+  categories: defaultCategories,
+  transactions: defaultTransactions,
+  settings: {
+    currency: 'THB',
+    dateLocale: 'th-TH',
+    schemaVersion: 1,
+  },
+};
