@@ -8,6 +8,18 @@ import {
 } from '../domain/finance';
 import { formatCurrency, getMonthName } from '../format';
 import type { Category, PeriodFilter, Transaction } from '../types';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 const appLogoPath = '/assets/nin-jah-ma-jod-logo.png';
 type DailyExpensePoint = {
@@ -40,6 +52,12 @@ export function Dashboard({
   const totals = calculateTotals(filteredTransactions);
   const expenseByCategory = groupTransactionsByCategory(filteredTransactions, categories, 'expense');
   const budgetUsage = calculateBudgetUsage(filteredTransactions, categories);
+  const sortedBudgetUsage = [...budgetUsage].sort((first, second) => {
+    const firstRisk = getBudgetRiskScore(first);
+    const secondRisk = getBudgetRiskScore(second);
+    if (firstRisk !== secondRisk) return secondRisk - firstRisk;
+    return second.amount - first.amount;
+  });
   const budgetSummary = budgetUsage.reduce(
     (summary, item) => ({
       actual: summary.actual + item.amount,
@@ -47,7 +65,6 @@ export function Dashboard({
     }),
     { actual: 0, planned: 0 },
   );
-  const expensePieGradient = buildPieGradient(expenseByCategory);
   const monthlyPeriodRange = getMonthlyPeriodRange(filter.year, filter.month, paydayDay);
   const dailyExpenseTrend = buildDailyExpenseTrend(transactions, monthlyPeriodRange);
   const weeklyExpenseTrend = buildWeeklyExpenseTrend(dailyExpenseTrend);
@@ -91,16 +108,16 @@ export function Dashboard({
   }
 
   return (
-    <section className="page-stack" aria-label="Dashboard">
+    <section className="page-stack" aria-label="ภาพรวม">
       <div className="toolbar">
         <div className="dashboard-title">
           <img className="dashboard-logo" src={appLogoPath} alt="NinJahMajod logo" />
           <div>
-            <p className="eyebrow">Dashboard</p>
+            <p className="eyebrow">ภาพรวม</p>
             <h1>ภาพรวมเงินสด</h1>
           </div>
         </div>
-        <div className="filter-controls dashboard-filter-controls" aria-label="ตัวกรองช่วงเวลา Dashboard">
+        <div className="filter-controls dashboard-filter-controls" aria-label="ตัวกรองช่วงเวลา">
           <select
             aria-label="รูปแบบช่วงเวลา"
             value={filter.type}
@@ -191,25 +208,7 @@ export function Dashboard({
           {expenseByCategory.length === 0 ? (
             <p className="empty-state">ยังไม่มีรายจ่ายในช่วงนี้</p>
           ) : (
-            <div className="pie-summary">
-              <div
-                className="css-pie"
-                style={{ background: expensePieGradient }}
-                role="img"
-                aria-label={`รายจ่ายตามหมวด: ${expenseByCategory
-                  .map((item) => `${item.category.name} ${formatCurrency(item.amount)}`)
-                  .join(', ')}`}
-              />
-              <div className="pie-legend">
-                {expenseByCategory.map((item) => (
-                  <div key={item.category.id}>
-                    <span className="category-dot" style={{ background: item.category.color }} />
-                    <strong>{item.category.name}</strong>
-                    <span>{formatCurrency(item.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ExpenseCategoryChart data={expenseByCategory} />
           )}
         </div>
       </div>
@@ -227,7 +226,7 @@ export function Dashboard({
           </div>
         </div>
         <div className="budget-list">
-          {budgetUsage.map((item) => {
+          {sortedBudgetUsage.map((item) => {
             const isUnplannedExpense = item.budget === 0 && item.amount > 0;
             const progressValue = isUnplannedExpense ? 100 : Math.min(item.percentUsed, 100);
             const budgetStatusLabel = isUnplannedExpense
@@ -238,7 +237,7 @@ export function Dashboard({
               : `${item.category.name} ใช้งบไป ${item.percentUsed}%`;
 
             return (
-              <div className="budget-row" key={item.category.id}>
+              <div className="budget-row" key={item.category.id} data-testid="budget-row">
                 <div>
                   <strong>{item.category.name}</strong>
                   <span>
@@ -358,17 +357,11 @@ function buildWeeklyExpenseTrend(
   return weeks;
 }
 
-function buildPieGradient(items: CategoryTotal[]): string {
-  const total = items.reduce((sum, item) => sum + item.amount, 0);
-  let cursor = 0;
-  const stops = items.map((item) => {
-    const start = cursor;
-    const end = cursor + (item.amount / total) * 100;
-    cursor = end;
-    return `${item.category.color} ${start}% ${end}%`;
-  });
-
-  return `conic-gradient(${stops.join(', ')})`;
+function getBudgetRiskScore(item: { amount: number; budget: number; percentUsed: number }): number {
+  if (item.budget === 0 && item.amount > 0) return 1000 + item.amount;
+  if (item.percentUsed > 100) return 900 + item.percentUsed;
+  if (item.percentUsed >= 80) return 500 + item.percentUsed;
+  return item.percentUsed;
 }
 
 function MonthlyExpenseTrendChart({
@@ -409,18 +402,13 @@ function MonthlyExpenseTrendChart({
         </tbody>
       </table>
       <div className="trend-bars weekly-trend-bars" aria-hidden="true">
-        {weeklyData.map((item) => (
-          <div className="trend-month" key={item.label}>
-            <div className="trend-columns">
-              <span
-                className="trend-bar expense"
-                style={{ height: `${Math.max((item.expense / maxValue) * 100, item.expense > 0 ? 3 : 0)}%` }}
-                title={`${item.label} ${formatCurrency(item.expense)}`}
-              />
-            </div>
-            <span>{item.label}</span>
-          </div>
-        ))}
+        <BarChart width={460} height={210} data={weeklyData} margin={{ top: 12, right: 8, bottom: 8, left: 8 }}>
+          <CartesianGrid stroke="#dbe3ef" vertical={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} />
+          <YAxis hide domain={[0, maxValue]} />
+          <Tooltip formatter={(value) => formatCurrency(Number(value))} labelFormatter={(label) => `วันที่ ${label}`} />
+          <Bar dataKey="expense" name="รายจ่าย" fill="#dc2626" radius={[5, 5, 0, 0]} />
+        </BarChart>
       </div>
       {activeDays.length > 0 ? (
         <div
@@ -493,29 +481,62 @@ function YearTrendChart({
         </tbody>
       </table>
       <div className="trend-bars" aria-hidden="true">
-        {data.map((item) => (
-          <div className="trend-month" key={item.month}>
-            <div className="trend-columns">
-              <span
-                className="trend-bar income"
-                style={{ height: `${Math.max((item.income / maxValue) * 100, item.income > 0 ? 3 : 0)}%` }}
-                title={`รายรับ ${item.month} ${formatCurrency(item.income)}`}
-              />
-              <span
-                className="trend-bar expense"
-                style={{ height: `${Math.max((item.expense / maxValue) * 100, item.expense > 0 ? 3 : 0)}%` }}
-                title={`รายจ่าย ${item.month} ${formatCurrency(item.expense)}`}
-              />
-            </div>
-            <span>{item.month}</span>
-          </div>
-        ))}
+        <BarChart width={560} height={230} data={data} margin={{ top: 12, right: 12, bottom: 8, left: 8 }}>
+          <CartesianGrid stroke="#dbe3ef" vertical={false} />
+          <XAxis dataKey="month" tickLine={false} axisLine={false} />
+          <YAxis hide domain={[0, maxValue]} />
+          <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+          <Legend />
+          <Bar dataKey="income" name="รายรับ" fill="#15803d" radius={[5, 5, 0, 0]} />
+          <Bar dataKey="expense" name="รายจ่าย" fill="#dc2626" radius={[5, 5, 0, 0]} />
+        </BarChart>
       </div>
       <div className="trend-legend">
         <span className="category-dot income-dot" />
         รายรับ
         <span className="category-dot expense-dot" />
         รายจ่าย
+      </div>
+    </div>
+  );
+}
+
+function ExpenseCategoryChart({ data }: { data: CategoryTotal[] }) {
+  return (
+    <div className="pie-summary">
+      <div
+        className="category-pie-chart"
+        role="img"
+        aria-label={`รายจ่ายตามหมวด: ${data
+          .map((item) => `${item.category.name} ${formatCurrency(item.amount)}`)
+          .join(', ')}`}
+      >
+        <PieChart width={220} height={220}>
+          <Pie
+            data={data}
+            dataKey="amount"
+            nameKey="category.name"
+            cx="50%"
+            cy="50%"
+            innerRadius={54}
+            outerRadius={94}
+            paddingAngle={1}
+          >
+            {data.map((item) => (
+              <Cell key={item.category.id} fill={item.category.color} />
+            ))}
+          </Pie>
+          <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+        </PieChart>
+      </div>
+      <div className="pie-legend">
+        {data.map((item) => (
+          <div key={item.category.id}>
+            <span className="category-dot" style={{ background: item.category.color }} />
+            <strong>{item.category.name}</strong>
+            <span>{formatCurrency(item.amount)}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

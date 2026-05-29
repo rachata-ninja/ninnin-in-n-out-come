@@ -51,6 +51,7 @@ import type {
   TransactionPageSize,
 } from "./types";
 import { Dashboard } from "./components/Dashboard";
+import { ConfirmDialog } from "./components/ui/ConfirmDialog";
 
 type Page = "dashboard" | "transactions" | "categories" | "settings";
 type SyncState =
@@ -62,10 +63,10 @@ type SyncState =
 const appLogoPath = "/assets/nin-jah-ma-jod-logo.png";
 
 const navItems: Array<{ page: Page; label: string; icon: ElementType }> = [
-  { page: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { page: "dashboard", label: "ภาพรวม", icon: LayoutDashboard },
   { page: "transactions", label: "รายการ", icon: ListPlus },
   { page: "categories", label: "หมวดหมู่", icon: Tags },
-  { page: "settings", label: "Settings", icon: Settings },
+  { page: "settings", label: "ตั้งค่า", icon: Settings },
 ];
 
 const transactionPageSizeOptions: TransactionPageSize[] = [5, 10, 20];
@@ -357,7 +358,16 @@ export default function App() {
   }
 
   if (syncState.mode === "signed-out") {
-    return <AuthPage client={syncState.client} errorMessage={syncError} />;
+    return (
+      <AuthPage
+        client={syncState.client}
+        errorMessage={syncError}
+        onUseLocal={() => {
+          setSyncError("");
+          setSyncState({ mode: "local" });
+        }}
+      />
+    );
   }
 
   return (
@@ -484,13 +494,16 @@ function StatusScreen({ title, message }: { title: string; message: string }) {
 function AuthPage({
   client,
   errorMessage,
+  onUseLocal,
 }: {
   client: SupabaseClient;
   errorMessage: string;
+  onUseLocal: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [showAccountForm, setShowAccountForm] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authNotice, setAuthNotice] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -512,92 +525,120 @@ function AuthPage({
 
     if (result.error) setAuthError(result.error.message);
     if (!result.error && mode === "sign-up" && !result.data.session) {
-      setAuthNotice("สร้างบัญชีแล้ว กรุณายืนยัน email ก่อนเข้าสู่ระบบ");
+      setAuthNotice("สร้างบัญชีแล้ว กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ");
     }
     setIsSubmitting(false);
   }
 
   return (
     <main className="auth-shell">
-      <section className="auth-panel">
+      <section className={showAccountForm ? "auth-panel" : "auth-panel auth-panel-entry"}>
         <div className="brand auth-brand">
           <img className="brand-logo" src={appLogoPath} alt="NinJahMajod logo" />
           <div>
             <strong>NinJahMajod</strong>
-            <small>Supabase sync</small>
+            <small>รายรับรายจ่าย</small>
           </div>
         </div>
-        <p className="eyebrow">Online Sync</p>
-        <h1>เข้าสู่ระบบเพื่อเก็บข้อมูลถาวร</h1>
-        <p>
-          ข้อมูลจะถูกผูกกับบัญชีของคุณและแยกจากผู้ใช้อื่นด้วย Supabase Row Level
-          Security
-        </p>
+        <p className="eyebrow">เริ่มใช้งาน</p>
+        <h1>เริ่มจัดการเงินของคุณ</h1>
+        <p>บันทึกรายรับรายจ่าย ดูงบรายเดือน และเลือกได้ว่าจะเก็บข้อมูลบนเครื่องนี้หรือ sync ด้วยบัญชี Supabase</p>
 
-        <div className="segmented auth-mode" aria-label="เลือกโหมดเข้าสู่ระบบ">
-          <button
-            className={mode === "sign-in" ? "active" : ""}
-            type="button"
-            onClick={() => setMode("sign-in")}
-          >
-            Login
-          </button>
-          <button
-            className={mode === "sign-up" ? "active" : ""}
-            type="button"
-            onClick={() => setMode("sign-up")}
-          >
-            Sign up
-          </button>
-        </div>
+        {!showAccountForm && (
+          <div className="entry-actions" aria-label="วิธีเริ่มใช้งาน">
+            <button className="primary-button" type="button" onClick={onUseLocal}>
+              ใช้บนเครื่องนี้
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setAuthError("");
+                setAuthNotice("");
+                setShowAccountForm(true);
+              }}
+            >
+              เข้าสู่ระบบเพื่อ sync
+            </button>
+          </div>
+        )}
 
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <label>
-            Email
-            <input
-              autoComplete="email"
-              inputMode="email"
-              required
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </label>
-          <label>
-            Password
-            <input
-              autoComplete={
-                mode === "sign-in" ? "current-password" : "new-password"
-              }
-              minLength={6}
-              required
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          {(authError || errorMessage) && (
-            <p className="inline-error" role="alert">
-              {authError || errorMessage}
-            </p>
-          )}
-          {authNotice && (
-            <p className="inline-notice" role="status">
-              {authNotice}
-            </p>
-          )}
-          <button
-            className="primary-button"
-            disabled={isSubmitting}
-            type="submit"
-          >
-            {isSubmitting
-              ? "กำลังดำเนินการ"
-              : mode === "sign-in"
-                ? "เข้าสู่ระบบ"
-                : "สร้างบัญชี"}
-          </button>
-        </form>
+        {showAccountForm && (
+          <>
+            <div className="segmented auth-mode" aria-label="เลือกโหมดบัญชี">
+              <button
+                className={mode === "sign-in" ? "active" : ""}
+                type="button"
+                onClick={() => {
+                  setAuthError("");
+                  setAuthNotice("");
+                  setMode("sign-in");
+                }}
+              >
+                เข้าสู่ระบบ
+              </button>
+              <button
+                className={mode === "sign-up" ? "active" : ""}
+                type="button"
+                onClick={() => {
+                  setAuthError("");
+                  setAuthNotice("");
+                  setMode("sign-up");
+                }}
+              >
+                สมัครบัญชี
+              </button>
+            </div>
+
+            <form className="auth-form" onSubmit={handleSubmit}>
+              <label>
+                อีเมล
+                <input
+                  autoComplete="email"
+                  inputMode="email"
+                  required
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </label>
+              <label>
+                รหัสผ่าน
+                <input
+                  autoComplete={
+                    mode === "sign-in" ? "current-password" : "new-password"
+                  }
+                  minLength={6}
+                  required
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </label>
+              {(authError || errorMessage) && (
+                <p className="inline-error" role="alert">
+                  {authError || errorMessage}
+                </p>
+              )}
+              {authNotice && (
+                <p className="inline-notice" role="status">
+                  {authNotice}
+                </p>
+              )}
+              <button
+                className="primary-button"
+                disabled={isSubmitting}
+                type="submit"
+              >
+                {isSubmitting
+                  ? "กำลังดำเนินการ"
+                  : mode === "sign-in"
+                    ? "เข้าสู่ระบบ"
+                    : "สร้างบัญชี"}
+              </button>
+            </form>
+          </>
+        )}
       </section>
     </main>
   );
@@ -623,6 +664,7 @@ function TransactionsPage({
   onPageSizeChange: (pageSize: TransactionPageSize) => void;
 }) {
   const [listFilter, setListFilter] = useState<TransactionListFilter>({});
+  const [filtersOpen, setFiltersOpen] = useState(() => shouldOpenFiltersByDefault());
   const filteredTransactions = sortTransactions(filterTransactionsForList(transactions, listFilter));
   const [page, setPage] = useState(1);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -643,6 +685,18 @@ function TransactionsPage({
     setPendingDeleteId(null);
     setPage(1);
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+
+    const mediaQuery = window.matchMedia("(min-width: 921px)");
+    const updateFilterVisibility = () => setFiltersOpen(mediaQuery.matches);
+
+    updateFilterVisibility();
+    mediaQuery.addEventListener("change", updateFilterVisibility);
+
+    return () => mediaQuery.removeEventListener("change", updateFilterVisibility);
+  }, []);
 
   return (
     <section className="page-stack" aria-label="รายการ">
@@ -685,76 +739,83 @@ function TransactionsPage({
             </select>
           </label>
         </div>
-        <div className="transaction-filter-controls" aria-label="ตัวกรองรายการ">
-          <label>
-            กรองวันที่
-            <input
-              aria-label="กรองวันที่"
-              type="date"
-              value={listFilter.date ?? ""}
-              onChange={(event) =>
-                updateListFilter({
-                  ...listFilter,
-                  date: event.target.value || undefined,
-                })
-              }
-            />
-          </label>
-          <label>
-            กรองเดือน
-            <select
-              aria-label="กรองเดือน"
-              value={listFilter.month ?? ""}
-              onChange={(event) =>
-                updateListFilter({
-                  ...listFilter,
-                  month: event.target.value ? Number(event.target.value) : undefined,
-                })
-              }
-            >
-              <option value="">ทุกเดือน</option>
-              {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
-                <option key={month} value={month}>
-                  {getMonthName(month)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            กรองปี
-            <input
-              aria-label="กรองปี"
-              type="number"
-              value={listFilter.year ?? ""}
-              onChange={(event) =>
-                updateListFilter({
-                  ...listFilter,
-                  year: event.target.value ? Number(event.target.value) : undefined,
-                })
-              }
-            />
-          </label>
-          <label>
-            กรองหมวดหมู่
-            <select
-              aria-label="กรองหมวดหมู่"
-              value={listFilter.categoryId ?? ""}
-              onChange={(event) =>
-                updateListFilter({
-                  ...listFilter,
-                  categoryId: event.target.value || undefined,
-                })
-              }
-            >
-              <option value="">ทุกหมวดหมู่</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <details
+          className="filter-disclosure"
+          open={filtersOpen}
+          onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
+        >
+          <summary>ตัวกรอง</summary>
+          <div className="transaction-filter-controls" aria-label="ตัวกรองรายการ">
+            <label>
+              กรองวันที่
+              <input
+                aria-label="กรองวันที่"
+                type="date"
+                value={listFilter.date ?? ""}
+                onChange={(event) =>
+                  updateListFilter({
+                    ...listFilter,
+                    date: event.target.value || undefined,
+                  })
+                }
+              />
+            </label>
+            <label>
+              กรองเดือน
+              <select
+                aria-label="กรองเดือน"
+                value={listFilter.month ?? ""}
+                onChange={(event) =>
+                  updateListFilter({
+                    ...listFilter,
+                    month: event.target.value ? Number(event.target.value) : undefined,
+                  })
+                }
+              >
+                <option value="">ทุกเดือน</option>
+                {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+                  <option key={month} value={month}>
+                    {getMonthName(month)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              กรองปี
+              <input
+                aria-label="กรองปี"
+                type="number"
+                value={listFilter.year ?? ""}
+                onChange={(event) =>
+                  updateListFilter({
+                    ...listFilter,
+                    year: event.target.value ? Number(event.target.value) : undefined,
+                  })
+                }
+              />
+            </label>
+            <label>
+              กรองหมวดหมู่
+              <select
+                aria-label="กรองหมวดหมู่"
+                value={listFilter.categoryId ?? ""}
+                onChange={(event) =>
+                  updateListFilter({
+                    ...listFilter,
+                    categoryId: event.target.value || undefined,
+                  })
+                }
+              >
+                <option value="">ทุกหมวดหมู่</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </details>
         <div className="table-wrap">
           <table>
             <thead>
@@ -902,6 +963,11 @@ function TransactionsPage({
       </div>
     </section>
   );
+}
+
+function shouldOpenFiltersByDefault() {
+  if (typeof window === "undefined" || !window.matchMedia) return true;
+  return window.matchMedia("(min-width: 921px)").matches;
 }
 
 function EditTransactionForm({
@@ -1062,13 +1128,21 @@ function CategoriesPage({
     <section className="page-stack categories-page" aria-label="หมวดหมู่">
       <div className="toolbar">
         <div>
-          <p className="eyebrow">Categories & Budgets</p>
+          <p className="eyebrow">หมวดหมู่และงบ</p>
           <h1>หมวดหมู่และงบประมาณ</h1>
         </div>
       </div>
 
       <div className="split-grid categories-layout">
-        <div className="panel category-editor-panel">
+        <div
+          className={editingCategory ? "panel category-editor-panel editing" : "panel category-editor-panel"}
+          role="region"
+          aria-label={
+            editingCategory
+              ? `ฟอร์มแก้ไขหมวดหมู่ ${editingCategory.name}`
+              : "ฟอร์มเพิ่มหมวดหมู่"
+          }
+        >
           <div className="panel-heading">
             <h2>{editingCategory ? "แก้ไขหมวดหมู่" : "เพิ่มหมวดหมู่"}</h2>
             {editingCategory && (
@@ -1175,9 +1249,7 @@ function CategoriesPage({
                     />
                     <span className="category-name">
                       <strong>{category.name}</strong>
-                      <small>
-                        {isEditing ? "กำลังแก้ไข" : "แตะเพื่อแก้ไข"}
-                      </small>
+                      {isEditing && <small>กำลังแก้ไข</small>}
                     </span>
                     <span className="category-meta">
                       <small>ประเภท</small>
@@ -1342,10 +1414,10 @@ function SettingsPage({
   }
 
   return (
-    <section className="page-stack" aria-label="Settings">
+    <section className="page-stack" aria-label="ตั้งค่า">
       <div className="toolbar">
         <div>
-          <p className="eyebrow">Settings</p>
+          <p className="eyebrow">ตั้งค่า</p>
           <h1>จัดการข้อมูล</h1>
         </div>
       </div>
@@ -1353,23 +1425,23 @@ function SettingsPage({
       <div className="settings-grid">
         <article className="panel setting-card">
           <Download size={24} />
-          <h2>Export JSON</h2>
+          <h2>สำรองข้อมูล JSON</h2>
           <p>สำรองข้อมูลทั้งหมดเป็นไฟล์ JSON สำหรับนำกลับมาใช้ภายหลัง</p>
           <button className="primary-button" type="button" onClick={exportJson}>
-            Export
+            ดาวน์โหลด JSON
           </button>
         </article>
 
         <article className="panel setting-card">
           <Upload size={24} />
-          <h2>Import JSON</h2>
+          <h2>นำเข้า JSON</h2>
           <p>นำเข้าข้อมูลจากไฟล์ JSON ที่ export จากระบบนี้</p>
           <input
             ref={fileInputRef}
             hidden
             type="file"
             accept="application/json"
-            aria-label="Import JSON file"
+            aria-label="ไฟล์ JSON สำหรับนำเข้า"
             onChange={handleImport}
           />
           {importError && (
@@ -1382,49 +1454,38 @@ function SettingsPage({
             type="button"
             onClick={() => fileInputRef.current?.click()}
           >
-            Import
+            นำเข้า JSON
           </button>
         </article>
 
         <article className="panel setting-card">
           <RotateCcw size={24} />
-          <h2>Reset demo data</h2>
+          <h2>รีเซ็ตข้อมูลตัวอย่าง</h2>
           <p>คืนค่าข้อมูลตัวอย่างและหมวดหมู่เริ่มต้น</p>
-          {confirmReset ? (
-            <div className="confirm-actions">
-              <button
-                className="danger-button"
-                type="button"
-                onClick={() => {
-                  onReset();
-                  setConfirmReset(false);
-                }}
-              >
-                ยืนยัน Reset
+          <ConfirmDialog
+            confirmLabel="ยืนยันรีเซ็ต"
+            description="การรีเซ็ตจะคืนค่าข้อมูลตัวอย่างและหมวดหมู่เริ่มต้น ข้อมูลที่เพิ่มไว้ในเครื่องนี้จะถูกแทนที่"
+            onConfirm={() => {
+              onReset();
+              setConfirmReset(false);
+            }}
+            onOpenChange={setConfirmReset}
+            open={confirmReset}
+            title="ยืนยันการรีเซ็ตข้อมูล"
+            trigger={
+              <button className="danger-button" type="button">
+                รีเซ็ตข้อมูลตัวอย่าง
               </button>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => setConfirmReset(false)}
-              >
-                ยกเลิก
-              </button>
-            </div>
-          ) : (
-            <button
-              className="danger-button"
-              type="button"
-              onClick={() => setConfirmReset(true)}
-            >
-              Reset
-            </button>
-          )}
+            }
+          >
+            <p className="inline-error">การทำงานนี้แทนที่ข้อมูลปัจจุบันในเครื่อง</p>
+          </ConfirmDialog>
         </article>
 
         {syncAccount && (
           <article className="panel setting-card">
             <LogOut size={24} />
-            <h2>Supabase account</h2>
+            <h2>บัญชี Supabase</h2>
             <p>{syncAccount.email}</p>
             <button
               className="secondary-button"

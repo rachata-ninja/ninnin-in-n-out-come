@@ -88,7 +88,7 @@ describe('Dashboard', () => {
     expect(screen.getByLabelText('รูปแบบช่วงเวลา')).toHaveValue('month');
     expect(screen.getByLabelText('เดือน')).toHaveValue('5');
     expect(screen.queryByLabelText('วันที่')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('ตัวกรองช่วงเวลา Dashboard')).toHaveClass('dashboard-filter-controls');
+    expect(screen.getByLabelText('ตัวกรองช่วงเวลา')).toHaveClass('dashboard-filter-controls');
   });
 
   it('updates displayed totals when the month filter changes', async () => {
@@ -233,6 +233,47 @@ describe('Dashboard', () => {
       width: '100%',
       background: '#dc2626',
     });
+  });
+
+  it('orders budget risk items before healthy budget items', () => {
+    render(
+      <Dashboard
+        transactions={[
+          ...transactions,
+          {
+            id: 'coffee-may',
+            type: 'expense',
+            categoryId: 'coffee',
+            amount: 300,
+            date: '2026-05-20',
+            note: '',
+            createdAt: '2026-05-20T00:00:00.000Z',
+            updatedAt: '2026-05-20T00:00:00.000Z',
+          },
+        ]}
+        categories={[
+          ...defaultCategories,
+          {
+            id: 'coffee',
+            name: 'กาแฟ',
+            type: 'expense',
+            color: '#92400e',
+            monthlyBudget: 100,
+            isActive: true,
+          },
+        ]}
+        filter={{ type: 'month', year: 2026, month: 5 }}
+        onFilterChange={vi.fn()}
+      />,
+    );
+
+    const budgetRows = screen.getAllByTestId('budget-row').map((row) => row.textContent ?? '');
+
+    expect(budgetRows[0]).toContain('กาแฟ');
+    expect(budgetRows[0]).toContain('300%');
+    expect(budgetRows.findIndex((row) => row.includes('กาแฟ'))).toBeLessThan(
+      budgetRows.findIndex((row) => row.includes('ค่าอาหาร')),
+    );
   });
 
   it('uses a weekly expense bar chart when the dashboard is filtered by month', () => {

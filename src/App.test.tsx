@@ -43,7 +43,7 @@ describe("App smoke flow", () => {
     expect(within(table).getByText("กาแฟ")).toBeInTheDocument();
     expect(within(table).getByText("ลาเต้")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Dashboard" }));
+    await user.click(screen.getByRole("button", { name: "ภาพรวม" }));
     await user.clear(screen.getByLabelText("ปี"));
     await user.type(screen.getByLabelText("ปี"), "2026");
     await user.selectOptions(screen.getByLabelText("เดือน"), "5");
@@ -81,7 +81,7 @@ describe("App smoke flow", () => {
     expect(screen.getByText("เงินสำรอง")).toBeInTheDocument();
     expect(screen.getAllByText("ออมเงิน").length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: "Dashboard" }));
+    await user.click(screen.getByRole("button", { name: "ภาพรวม" }));
     await user.clear(screen.getByLabelText("ปี"));
     await user.type(screen.getByLabelText("ปี"), "2026");
     await user.selectOptions(screen.getByLabelText("เดือน"), "5");
@@ -225,7 +225,7 @@ describe("App smoke flow", () => {
 
     await user.click(screen.getByRole("button", { name: "รายการ" }));
     await user.selectOptions(screen.getByLabelText("จำนวนรายการต่อหน้า"), "10");
-    await user.click(screen.getByRole("button", { name: "Dashboard" }));
+    await user.click(screen.getByRole("button", { name: "ภาพรวม" }));
     await user.click(screen.getByRole("button", { name: "รายการ" }));
 
     expect(screen.getByLabelText("จำนวนรายการต่อหน้า")).toHaveValue("10");
@@ -340,16 +340,31 @@ describe("App smoke flow", () => {
     await user.click(screen.getByRole("button", { name: "เพิ่มรายการ" }));
     expect(screen.getByText("ทดสอบ reset")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Settings" }));
-    await user.click(screen.getByRole("button", { name: "Reset" }));
+    await user.click(screen.getByRole("button", { name: "ตั้งค่า" }));
+    await user.click(screen.getByRole("button", { name: "รีเซ็ตข้อมูลตัวอย่าง" }));
+    expect(screen.getByRole("alertdialog", { name: "ยืนยันการรีเซ็ตข้อมูล" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "ยกเลิก" }));
     await user.click(screen.getByRole("button", { name: "รายการ" }));
     expect(screen.getByText("ทดสอบ reset")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Settings" }));
-    await user.click(screen.getByRole("button", { name: "Reset" }));
-    await user.click(screen.getByRole("button", { name: "ยืนยัน Reset" }));
+    await user.click(screen.getByRole("button", { name: "ตั้งค่า" }));
+    await user.click(screen.getByRole("button", { name: "รีเซ็ตข้อมูลตัวอย่าง" }));
+    await user.click(screen.getByRole("button", { name: "ยืนยันรีเซ็ต" }));
     await user.click(screen.getByRole("button", { name: "รายการ" }));
     expect(screen.queryByText("ทดสอบ reset")).not.toBeInTheDocument();
+  });
+
+  it("uses Thai-first primary navigation labels", () => {
+    render(<App />);
+
+    const navigation = screen.getByRole("navigation", { name: "หน้าหลัก" });
+
+    expect(within(navigation).getByRole("button", { name: "ภาพรวม" })).toBeInTheDocument();
+    expect(within(navigation).getByRole("button", { name: "รายการ" })).toBeInTheDocument();
+    expect(within(navigation).getByRole("button", { name: "หมวดหมู่" })).toBeInTheDocument();
+    expect(within(navigation).getByRole("button", { name: "ตั้งค่า" })).toBeInTheDocument();
+    expect(within(navigation).queryByRole("button", { name: "Dashboard" })).not.toBeInTheDocument();
+    expect(within(navigation).queryByRole("button", { name: "Settings" })).not.toBeInTheDocument();
   });
 
   it("lets mobile users choose a category to edit and cancel back to add mode", async () => {
@@ -365,6 +380,7 @@ describe("App smoke flow", () => {
     await user.click(foodCategory);
 
     expect(screen.getByRole("heading", { name: "แก้ไขหมวดหมู่" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "ฟอร์มแก้ไขหมวดหมู่ ค่าอาหาร" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /แก้ไขหมวดหมู่ ค่าอาหาร/ })).toHaveAttribute("aria-pressed", "true");
 
     await user.click(screen.getByRole("button", { name: "ยกเลิกการแก้ไข" }));

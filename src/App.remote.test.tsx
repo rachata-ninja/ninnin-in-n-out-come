@@ -37,7 +37,8 @@ describe('App Supabase flow', () => {
     });
   });
 
-  it('shows a login screen when Supabase is configured and no session exists', async () => {
+  it('lets signed-out users choose local mode or account sync', async () => {
+    const user = userEvent.setup();
     mocks.client.auth.getSession.mockResolvedValue({
       data: { session: null },
       error: null,
@@ -45,8 +46,45 @@ describe('App Supabase flow', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'เข้าสู่ระบบเพื่อเก็บข้อมูลถาวร' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'เริ่มจัดการเงินของคุณ' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ใช้บนเครื่องนี้' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'เข้าสู่ระบบเพื่อ sync' })).toBeInTheDocument();
+    expect(screen.queryByText(/Row Level Security/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'ใช้บนเครื่องนี้' }));
+
+    expect(screen.getByRole('heading', { name: 'ภาพรวมเงินสด' })).toBeInTheDocument();
+  });
+
+  it('shows account sync errors and notices with accessible status roles', async () => {
+    const user = userEvent.setup();
+    mocks.client.auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    mocks.client.auth.signInWithPassword.mockResolvedValue({
+      data: { session: null },
+      error: { message: 'Invalid login credentials' },
+    });
+    mocks.client.auth.signUp.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'เข้าสู่ระบบเพื่อ sync' }));
+    await user.type(screen.getByLabelText('อีเมล'), 'demo@example.com');
+    await user.type(screen.getByLabelText('รหัสผ่าน'), 'wrong-password');
+    const signInButtons = screen.getAllByRole('button', { name: 'เข้าสู่ระบบ' });
+    await user.click(signInButtons[signInButtons.length - 1]);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid login credentials');
+
+    await user.click(screen.getByRole('button', { name: 'สมัครบัญชี' }));
+    await user.click(screen.getByRole('button', { name: 'สร้างบัญชี' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('สร้างบัญชีแล้ว กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ');
   });
 
   it('loads remote data when a Supabase session exists', async () => {
@@ -79,9 +117,9 @@ describe('App Supabase flow', () => {
     expect(await screen.findByText('demo@example.com')).toBeInTheDocument();
     expect(mocks.loadRemoteAppData).toHaveBeenCalledWith(mocks.client, 'user-1');
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    await user.click(screen.getByRole('button', { name: 'ตั้งค่า' }));
 
-    expect(screen.getByRole('heading', { name: 'Supabase account' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'บัญชี Supabase' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'ออกจากระบบ' }).length).toBeGreaterThan(0);
   });
 
