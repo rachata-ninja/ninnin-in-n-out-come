@@ -1009,6 +1009,7 @@ function EditTransactionForm({
 }) {
   const [categoryId, setCategoryId] = useState(transaction.categoryId);
   const [amount, setAmount] = useState(String(transaction.amount));
+  const [date, setDate] = useState(transaction.date);
   const [note, setNote] = useState(transaction.note);
   const [errors, setErrors] = useState<string[]>([]);
   const selectableCategories = useMemo(() => {
@@ -1041,7 +1042,7 @@ function EditTransactionForm({
       type: transaction.type,
       categoryId,
       amount: parsedAmount,
-      date: transaction.date,
+      date,
       note: note.trim(),
     };
     const nextErrors = validateTransactionInput(input);
@@ -1088,6 +1089,16 @@ function EditTransactionForm({
           value={amount}
           onChange={(event) => setAmount(sanitizeAmountExpression(event.target.value))}
           onBlur={normalizeAmount}
+        />
+      </label>
+      <label>
+        วันที่
+        <input
+          aria-label="วันที่"
+          required
+          type="date"
+          value={date}
+          onChange={(event) => setDate(event.target.value)}
         />
       </label>
       <label className="wide">

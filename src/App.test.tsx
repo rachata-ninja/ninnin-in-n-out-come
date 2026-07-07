@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -92,10 +92,13 @@ describe("App smoke flow", () => {
   });
 
   it("persists the selected payday day for the next app load", async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 10));
     const { unmount } = render(<App />);
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "วันเงินเดือนออก" }), "25");
+    fireEvent.change(screen.getByRole("combobox", { name: "วันเงินเดือนออก" }), {
+      target: { value: "25" },
+    });
 
     expect(window.localStorage.getItem(STORAGE_KEY)).toContain('"paydayDay":25');
 
@@ -140,7 +143,7 @@ describe("App smoke flow", () => {
     expect(screen.queryByText("กาแฟและน้ำดื่ม")).not.toBeInTheDocument();
   });
 
-  it("edits a transaction category, note, and amount", async () => {
+  it("edits a transaction category, date, note, and amount", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -154,6 +157,8 @@ describe("App smoke flow", () => {
     );
     await user.clear(within(editForm).getByLabelText("จำนวนเงิน"));
     await user.type(within(editForm).getByLabelText("จำนวนเงิน"), "120+60/2");
+    await user.clear(within(editForm).getByLabelText("วันที่"));
+    await user.type(within(editForm).getByLabelText("วันที่"), "2026-05-12");
     await user.clear(within(editForm).getByLabelText("โน้ต"));
     await user.type(within(editForm).getByLabelText("โน้ต"), "กาแฟแก้ไข");
     await user.click(within(editForm).getByRole("button", { name: "บันทึกการแก้ไข" }));
@@ -161,9 +166,11 @@ describe("App smoke flow", () => {
     const table = screen.getByRole("table");
     const updatedRow = within(table).getByText("กาแฟแก้ไข").closest("tr");
     expect(updatedRow).not.toBeNull();
+    expect(within(updatedRow as HTMLTableRowElement).getByText("12 พ.ค. 2569")).toBeInTheDocument();
     expect(within(updatedRow as HTMLTableRowElement).getByText("ค่าอาหาร")).toBeInTheDocument();
     expect(within(updatedRow as HTMLTableRowElement).getByText("฿150")).toBeInTheDocument();
     expect(window.localStorage.getItem(STORAGE_KEY)).toContain("กาแฟแก้ไข");
+    expect(window.localStorage.getItem(STORAGE_KEY)).toContain('"date":"2026-05-12"');
   });
 
   it("paginates the transaction list and lets users change page size", async () => {

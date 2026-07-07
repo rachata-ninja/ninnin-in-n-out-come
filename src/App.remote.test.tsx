@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultAppData } from './data/defaultData';
+import { getMonthlyFilterForDate, getMonthlyPeriodRange } from './domain/finance';
 import App from './App';
 import { saveAppData } from './storage/appStorage';
 
@@ -17,6 +18,22 @@ const mocks = vi.hoisted(() => ({
   },
   loadRemoteAppData: vi.fn(),
 }));
+
+const dateWithoutYearFormatter = new Intl.DateTimeFormat('th-TH', {
+  day: 'numeric',
+  month: 'short',
+});
+
+function formatDateWithoutYear(value: string): string {
+  return dateWithoutYearFormatter.format(new Date(`${value}T00:00:00`));
+}
+
+function expectedCurrentPaydayPeriod(paydayDay: number): string {
+  const filter = getMonthlyFilterForDate(new Date(), paydayDay);
+  const range = getMonthlyPeriodRange(filter.year, filter.month, paydayDay);
+
+  return `รอบเงินเดือน ${formatDateWithoutYear(range.start)} - ${formatDateWithoutYear(range.end)}`;
+}
 
 vi.mock('./storage/supabaseClient', () => ({
   getSupabaseClient: () => mocks.client,
@@ -144,6 +161,6 @@ describe('App Supabase flow', () => {
 
     expect(await screen.findByText('demo@example.com')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'วันเงินเดือนออก' })).toHaveValue('25');
-    expect(screen.getByText('รอบเงินเดือน 25 พ.ค. - 24 มิ.ย.')).toBeInTheDocument();
+    expect(screen.getByText(expectedCurrentPaydayPeriod(25))).toBeInTheDocument();
   });
 });
