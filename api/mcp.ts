@@ -517,8 +517,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('Connection', 'keep-alive');
+        const endpointUrl = req.url ? (req.url.startsWith('http') ? req.url : `${hostUrl}${req.url}`) : `${hostUrl}/api/mcp`;
         if (typeof res.write === 'function') {
-          res.write('event: endpoint\ndata: /api/mcp\n\n');
+          res.write(`event: endpoint\ndata: ${endpointUrl}\n\n`);
         }
         res.end();
         return;
@@ -546,6 +547,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 3. POST Request - Execution
     if (req.method === 'POST') {
+      const rpcMethod = payload.method as string | undefined;
+      const id = payload.id ?? 1;
+
+      // Handle MCP Handshake & Protocol Lifecycle Methods before database auth
+      if (rpcMethod === 'initialize') {
+        return res.status(200).json({
+          jsonrpc: '2.0',
+          id,
+          result: {
+            protocolVersion: '2024-11-05',
+            capabilities: {
+              tools: { listChanged: false },
+              resources: {},
+              prompts: {},
+              logging: {},
+            },
+            serverInfo: { name: 'ninjahmajod-mcp-server', version: '1.0.0' },
+          },
+        });
+      }
+
+      if (rpcMethod === 'notifications/initialized' || rpcMethod === 'initialized' || (rpcMethod && rpcMethod.startsWith('notifications/'))) {
+        return res.status(200).json({});
+      }
+
+      if (rpcMethod === 'ping') {
+        return res.status(200).json({ jsonrpc: '2.0', id, result: {} });
+      }
+
+      if (rpcMethod === 'tools/list') {
+        return res.status(200).json({ jsonrpc: '2.0', id, result: { tools: MCP_TOOLS } });
+      }
+
+      if (rpcMethod === 'resources/list') {
+        return res.status(200).json({ jsonrpc: '2.0', id, result: { resources: [] } });
+      }
+
+      if (rpcMethod === 'prompts/list') {
+        return res.status(200).json({ jsonrpc: '2.0', id, result: { prompts: [] } });
+      }
+
       const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
       const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -587,30 +629,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           password: process.env.SUPABASE_USER_PASSWORD,
         });
         if (loginData?.user?.id) userId = loginData.user.id;
-      }
-
-      // Check if it's an MCP JSON-RPC protocol message
-      const rpcMethod = payload.method as string | undefined;
-      const id = payload.id ?? 1;
-
-      if (rpcMethod === 'initialize') {
-        return res.status(200).json({
-          jsonrpc: '2.0',
-          id,
-          result: {
-            protocolVersion: '2024-11-05',
-            capabilities: { tools: { listChanged: false } },
-            serverInfo: { name: 'ninjahmajod-mcp-server', version: '1.0.0' },
-          },
-        });
-      }
-
-      if (rpcMethod === 'ping') {
-        return res.status(200).json({ jsonrpc: '2.0', id, result: {} });
-      }
-
-      if (rpcMethod === 'tools/list') {
-        return res.status(200).json({ jsonrpc: '2.0', id, result: { tools: MCP_TOOLS } });
       }
 
       if (!userId) {
