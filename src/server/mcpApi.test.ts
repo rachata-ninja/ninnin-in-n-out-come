@@ -59,15 +59,25 @@ function createMockReqRes(options: {
 }
 
 describe('api/mcp Serverless Handler', () => {
-  it('handles GET request returning server discovery info and tool list', async () => {
+  it('handles GET request returning valid OpenAPI 3.0 schema', async () => {
     const { req, res } = createMockReqRes({ method: 'GET' });
+    await handler(req, res);
+
+    expect(res._getStatus()).toBe(200);
+    const data = res._getData() as { openapi: string; paths: Record<string, unknown>; info: { title: string } };
+    expect(data.openapi).toBe('3.0.0');
+    expect(data.paths['/api/mcp']).toBeDefined();
+    expect(data.info.title).toContain('NinJahMajod');
+  });
+
+  it('handles GET request with format=mcp returning MCP tools list', async () => {
+    const { req, res } = createMockReqRes({ method: 'GET', query: { format: 'mcp' } });
     await handler(req, res);
 
     expect(res._getStatus()).toBe(200);
     const data = res._getData() as { name: string; tools: Array<{ name: string }> };
     expect(data.name).toBe('ninjahmajod-mcp-server');
     expect(data.tools).toHaveLength(MCP_TOOLS.length);
-    expect(data.tools.map((t) => t.name)).toContain('record_transaction');
   });
 
   it('handles GET request with SSE accept header', async () => {

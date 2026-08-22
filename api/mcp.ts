@@ -29,7 +29,7 @@ export interface McpToolDefinition {
 }
 
 // ==========================================
-// 2. Authoritative MCP Tools Definition (SSoT)
+// 2. Authoritative MCP Tools Definition
 // ==========================================
 export const MCP_TOOLS: McpToolDefinition[] = [
   {
@@ -181,15 +181,14 @@ export function matchCategory(
 }
 
 // ==========================================
-// 4. OpenAPI 3.0 Schema Generator
+// 4. Pure, Strict OpenAPI 3.0.0 Schema (Google Gemini Compliant)
 // ==========================================
-export function getFullOpenApiSchema(hostUrl: string) {
+export function getStrictOpenApiSchema(hostUrl: string) {
   return {
     openapi: '3.0.0',
     info: {
-      title: 'NinJahMajod Google Gemini & Voice Assistant API',
-      description:
-        'Record daily personal expenses, check budget summaries, view recent transactions, and manage categories using Google Gemini, Google Assistant, and MCP clients.',
+      title: 'NinJahMajod Voice & Finance API',
+      description: 'API for Google Gemini to record expenses, view financial summaries, and manage transactions in NinJahMajod.',
       version: '1.0.0',
     },
     servers: [
@@ -199,12 +198,11 @@ export function getFullOpenApiSchema(hostUrl: string) {
       },
     ],
     paths: {
-      '/api/record_transaction': {
+      '/api/mcp': {
         post: {
           operationId: 'record_transaction',
           summary: 'Record an expense or income transaction',
-          description:
-            'Records an expense, income, or savings transaction into NinJahMajod with automatic smart category matching in Thai & English.',
+          description: 'Records an expense, income, or savings transaction into NinJahMajod with automatic smart category matching in Thai & English.',
           parameters: [
             {
               name: 'key',
@@ -221,9 +219,9 @@ export function getFullOpenApiSchema(hostUrl: string) {
                 schema: {
                   type: 'object',
                   properties: {
-                    amount: { type: 'number', description: 'The amount of money spent or earned (e.g. 60, 150)' },
-                    note: { type: 'string', description: 'Description of what was spent or earned' },
-                    type: { type: 'string', enum: ['expense', 'income', 'savings'], default: 'expense' },
+                    amount: { type: 'number', description: 'The amount of money spent or earned (e.g. 60, 150, 35000)' },
+                    note: { type: 'string', description: 'Description of what was spent or earned (e.g. food, coffee, grab, salary)' },
+                    type: { type: 'string', enum: ['expense', 'income', 'savings'], default: 'expense', description: 'Transaction type' },
                     category_name: { type: 'string', description: 'Optional category name hint' },
                     date: { type: 'string', description: 'Date in YYYY-MM-DD format (defaults to today)' },
                     key: { type: 'string', description: 'Optional Voice API Key' },
@@ -235,7 +233,7 @@ export function getFullOpenApiSchema(hostUrl: string) {
           },
           responses: {
             '200': {
-              description: 'Successfully recorded',
+              description: 'Transaction recorded successfully',
               content: {
                 'application/json': {
                   schema: {
@@ -251,12 +249,11 @@ export function getFullOpenApiSchema(hostUrl: string) {
           },
         },
       },
-      '/api/get_financial_summary': {
+      '/api/summary': {
         post: {
           operationId: 'get_financial_summary',
-          summary: 'Get monthly financial summary and budget status',
-          description:
-            'Calculates total income, total expenses, net remaining balance, and category budget usage for a given month.',
+          summary: 'Get monthly financial summary',
+          description: 'Calculates total income, total expenses, net remaining balance, and category budget usage for a given month.',
           parameters: [
             {
               name: 'key',
@@ -302,7 +299,7 @@ export function getFullOpenApiSchema(hostUrl: string) {
           },
         },
       },
-      '/api/list_recent_transactions': {
+      '/api/recent': {
         post: {
           operationId: 'list_recent_transactions',
           summary: 'List recent financial transactions',
@@ -323,7 +320,7 @@ export function getFullOpenApiSchema(hostUrl: string) {
                 schema: {
                   type: 'object',
                   properties: {
-                    limit: { type: 'number', default: 10, description: 'Number of transactions to return' },
+                    limit: { type: 'number', default: 10, description: 'Number of transactions' },
                     type: { type: 'string', enum: ['expense', 'income', 'savings'], description: 'Filter by type' },
                     date: { type: 'string', description: 'Filter by date (YYYY-MM-DD)' },
                     key: { type: 'string', description: 'Optional Voice API Key' },
@@ -350,10 +347,10 @@ export function getFullOpenApiSchema(hostUrl: string) {
           },
         },
       },
-      '/api/list_categories': {
+      '/api/categories': {
         post: {
           operationId: 'list_categories',
-          summary: 'List all categories and monthly budgets',
+          summary: 'List all categories and budgets',
           description: 'Returns all active categories and their monthly budgets in NinJahMajod.',
           parameters: [
             {
@@ -395,7 +392,7 @@ export function getFullOpenApiSchema(hostUrl: string) {
           },
         },
       },
-      '/api/delete_transaction': {
+      '/api/delete': {
         post: {
           operationId: 'delete_transaction',
           summary: 'Delete a transaction by ID',
@@ -443,6 +440,20 @@ export function getFullOpenApiSchema(hostUrl: string) {
         },
       },
     },
+    components: {
+      securitySchemes: {
+        ApiKeyAuth: {
+          type: 'apiKey',
+          in: 'query',
+          name: 'key',
+        },
+      },
+    },
+    security: [
+      {
+        ApiKeyAuth: [],
+      },
+    ],
   };
 }
 
@@ -499,7 +510,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'Unauthorized: Invalid or missing MCP_API_KEY' });
     }
 
-    // 2. GET Request - Returns Dual OpenAPI 3.0.0 & MCP Schema for Gemini Spark & MCP Clients
+    // 2. GET Request
     if (req.method === 'GET') {
       const acceptHeader = String(req.headers.accept || '');
       if (acceptHeader.includes('text/event-stream')) {
@@ -513,19 +524,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
-      const openApiSchema = getFullOpenApiSchema(hostUrl);
+      // Check if client explicitly asks for MCP format via query param ?format=mcp
+      const isMcpFormat = queryParams?.get('format') === 'mcp' || (req.query?.format as string) === 'mcp';
+      if (isMcpFormat) {
+        return res.status(200).json({
+          name: 'ninjahmajod-mcp-server',
+          version: '1.0.0',
+          status: 'online',
+          tools: MCP_TOOLS,
+          endpoints: {
+            mcpJsonRpc: 'POST /api/mcp',
+            sseStream: 'GET /api/mcp',
+          },
+        });
+      }
 
-      return res.status(200).json({
-        ...openApiSchema,
-        name: 'ninjahmajod-mcp-server',
-        version: '1.0.0',
-        status: 'online',
-        tools: MCP_TOOLS,
-        endpoints: {
-          mcpJsonRpc: 'POST /api/mcp',
-          sseStream: 'GET /api/mcp',
-        },
-      });
+      // Default: Return Strict, Standard OpenAPI 3.0.0 Schema (Google Gemini Spark Compliant)
+      const openApiSchema = getStrictOpenApiSchema(hostUrl);
+      return res.status(200).json(openApiSchema);
     }
 
     // 3. POST Request - Execution
@@ -614,16 +630,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let toolName = (payload.tool as string) || (payload.params as { name?: string })?.name || (payload.operationId as string);
 
       if (!toolName) {
-        if (urlPath.includes('get_financial_summary') || urlPath.includes('summary')) {
+        if (urlPath.includes('summary') || typeof payload.month === 'number') {
           toolName = 'get_financial_summary';
-        } else if (urlPath.includes('list_recent_transactions') || urlPath.includes('recent')) {
+        } else if (urlPath.includes('recent') || typeof payload.limit === 'number') {
           toolName = 'list_recent_transactions';
-        } else if (urlPath.includes('list_categories') || urlPath.includes('categories')) {
+        } else if (urlPath.includes('categories')) {
           toolName = 'list_categories';
-        } else if (urlPath.includes('delete_transaction') || urlPath.includes('delete') || payload.transaction_id) {
+        } else if (urlPath.includes('delete') || payload.transaction_id) {
           toolName = 'delete_transaction';
-        } else if (typeof payload.amount === 'number' || payload.amount || payload.note) {
-          toolName = 'record_transaction';
         } else {
           toolName = 'record_transaction';
         }
