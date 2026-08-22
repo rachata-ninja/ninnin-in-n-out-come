@@ -1,4 +1,5 @@
 import {
+  Bot,
   ChevronDown,
   Download,
   LayoutDashboard,
@@ -465,6 +466,8 @@ export default function App() {
               syncState.mode === "remote"
                 ? {
                     email: syncState.session.user.email ?? "",
+                    client: syncState.client,
+                    session: syncState.session,
                     onSignOut: signOut,
                   }
                 : null
@@ -1427,13 +1430,60 @@ function SettingsPage({
   onReset,
 }: {
   data: AppData;
-  syncAccount: { email: string; onSignOut: () => void | Promise<void> } | null;
+  syncAccount: {
+    email: string;
+    client?: SupabaseClient;
+    session?: Session;
+    onSignOut: () => void | Promise<void>;
+  } | null;
   onImport: (data: AppData) => void | Promise<void>;
   onReset: () => void | Promise<void>;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [copiedMcp, setCopiedMcp] = useState(false);
+  const [apiKey, setApiKey] = useState<string>(() => {
+    return localStorage.getItem("ninja-mcp-api-key") || "";
+  });
+  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+
+  useEffect(() => {
+    if (!syncAccount?.client || typeof syncAccount.client.from !== "function" || !syncAccount?.session?.user?.id) return;
+    const client = syncAccount.client;
+    const userId = syncAccount.session.user.id;
+
+    void client
+      .from("user_api_keys")
+      .select("key")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data: keys }) => {
+        if (keys && keys.length > 0) {
+          setApiKey(keys[0].key);
+          localStorage.setItem("ninja-mcp-api-key", keys[0].key);
+        }
+      });
+  }, [syncAccount?.client, syncAccount?.session?.user?.id]);
+
+  async function generateOrGetApiKey() {
+    if (!syncAccount?.client || !syncAccount?.session?.user?.id) return;
+    setIsGeneratingKey(true);
+    const newKey = `ninja_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+    const client = syncAccount.client;
+    const userId = syncAccount.session.user.id;
+
+    await client.from("user_api_keys").insert({
+      key: newKey,
+      user_id: userId,
+      name: "Google Gemini Voice Key",
+    });
+
+    setApiKey(newKey);
+    localStorage.setItem("ninja-mcp-api-key", newKey);
+    setIsGeneratingKey(false);
+  }
 
   function exportJson() {
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -1534,18 +1584,60 @@ function SettingsPage({
         </article>
 
         {syncAccount && (
-          <article className="panel setting-card">
-            <LogOut size={24} />
-            <h2>บัญชี Supabase</h2>
-            <p>{syncAccount.email}</p>
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={syncAccount.onSignOut}
-            >
-              ออกจากระบบ
-            </button>
-          </article>
+          <>
+            <article className="panel setting-card">
+              <Bot size={24} />
+              <h2>Google Gemini & Voice MCP</h2>
+              <p>เชื่อมต่อ Google Gemini / เสียง โดยไม่ต้องใช้รหัสผ่าน</p>
+              {apiKey ? (
+                <>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/api/mcp?key=${apiKey}`;
+                      void navigator.clipboard.writeText(url);
+                      setCopiedMcp(true);
+                      setTimeout(() => setCopiedMcp(false), 2000);
+                    }}
+                  >
+                    {copiedMcp ? "คัดลอก URL แล้ว!" : "คัดลอก MCP URL"}
+                  </button>
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    style={{ fontSize: "0.85rem", marginTop: "4px" }}
+                    onClick={generateOrGetApiKey}
+                    disabled={isGeneratingKey}
+                  >
+                    สร้าง Key ใหม่
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={generateOrGetApiKey}
+                  disabled={isGeneratingKey}
+                >
+                  {isGeneratingKey ? "กำลังสร้าง Key..." : "สร้าง Voice MCP Key"}
+                </button>
+              )}
+            </article>
+
+            <article className="panel setting-card">
+              <LogOut size={24} />
+              <h2>บัญชี Supabase</h2>
+              <p>{syncAccount.email}</p>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={syncAccount.onSignOut}
+              >
+                ออกจากระบบ
+              </button>
+            </article>
+          </>
         )}
       </div>
     </section>

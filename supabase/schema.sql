@@ -54,3 +54,22 @@ for all
 to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+create table if not exists public.user_api_keys (
+  key text not null primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null default 'Google Gemini Voice Key',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists user_api_keys_user_id_idx on public.user_api_keys(user_id);
+alter table public.user_api_keys enable row level security;
+
+drop policy if exists "Users manage own api keys" on public.user_api_keys;
+create policy "Users manage own api keys"
+on public.user_api_keys
+for all
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
