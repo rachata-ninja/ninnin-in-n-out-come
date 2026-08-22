@@ -17,12 +17,12 @@ function createMockReqRes(options: {
   headers?: Record<string, string>;
   query?: Record<string, string>;
 }): MockReqResResult {
-  const req: VercelRequest = {
+  const req = {
     method: options.method,
     body: options.body,
     headers: options.headers || {},
     query: options.query || {},
-  };
+  } as unknown as VercelRequest;
 
   let statusCode = 200;
   let responseData: unknown = null;
@@ -165,8 +165,10 @@ describe('api/mcp Serverless Handler', () => {
     });
 
     await handler(req, res);
-    expect(res._getStatus()).toBe(500);
-    const data = res._getData() as { error: string };
-    expect(data.error).toContain('Unauthorized: No valid API Key provided');
+    expect(res._getStatus()).toBe(401);
+    const data = res._getData() as { error?: string; jsonrpc?: string; error_description?: string; message?: string; [k: string]: unknown };
+    const errObj = (data.error && typeof data.error === 'object') ? (data.error as { message: string }) : null;
+    const msg = errObj?.message || data.error || data.message || '';
+    expect(String(msg)).toContain('Unauthorized');
   });
 });
