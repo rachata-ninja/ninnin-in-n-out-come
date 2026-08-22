@@ -73,3 +73,25 @@ to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+drop policy if exists "Allow key lookup for API" on public.user_api_keys;
+create policy "Allow key lookup for API"
+on public.user_api_keys
+for select
+to anon
+using (true);
+
+drop policy if exists "Allow serverless insert transactions" on public.transactions;
+create policy "Allow serverless insert transactions"
+on public.transactions
+for all
+to anon
+using (true)
+with check (true);
+
+drop policy if exists "Allow serverless select categories" on public.categories;
+create policy "Allow serverless select categories"
+on public.categories
+for select
+to anon
+using (true);
+

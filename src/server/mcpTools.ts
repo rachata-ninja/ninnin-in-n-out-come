@@ -28,7 +28,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   {
     name: 'record_transaction',
     description:
-      'Record an expense, income, or savings transaction into NinJahMajod. Supports Thai/English notes with automatic smart category matching.',
+      'Record an expense, income, or savings transaction into NinJahMajod with smart category matching in Thai & English.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -39,7 +39,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         note: {
           type: 'string',
           description:
-            'Description of what was spent/earned (e.g. "food", "ข้าวมันไก่", "iced latte", "grab to work", "เงินเดือน").',
+            'Description of what was spent or earned (e.g. "food", "ข้าวมันไก่", "iced latte", "grab to work", "salary").',
         },
         type: {
           type: 'string',
@@ -53,7 +53,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         },
         date: {
           type: 'string',
-          description: 'Date in YYYY-MM-DD format. Defaults to today.',
+          description: 'Date in YYYY-MM-DD format (defaults to today).',
         },
       },
       required: ['amount', 'note'],
@@ -123,11 +123,274 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   },
 ];
 
+export function generateOpenApiSchema(hostUrl: string) {
+  return {
+    openapi: '3.0.0',
+    info: {
+      title: 'NinJahMajod Google Gemini & Voice Assistant API',
+      description:
+        'Record daily personal expenses, check budget summaries, view recent transactions, and manage categories using Google Gemini, Google Assistant, and MCP clients.',
+      version: '1.0.0',
+    },
+    servers: [
+      {
+        url: hostUrl,
+        description: 'NinJahMajod Production Server',
+      },
+    ],
+    paths: {
+      '/api/record_transaction': {
+        post: {
+          operationId: 'record_transaction',
+          summary: 'Record an expense or income transaction',
+          description:
+            'Records an expense, income, or savings transaction into NinJahMajod with automatic smart category matching in Thai & English.',
+          parameters: [
+            {
+              name: 'key',
+              in: 'query',
+              required: false,
+              schema: { type: 'string' },
+              description: 'Personal Voice API Key from NinJahMajod settings',
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    amount: { type: 'number', description: 'The amount of money spent or earned (e.g. 60, 150)' },
+                    note: { type: 'string', description: 'Description of what was spent or earned' },
+                    type: { type: 'string', enum: ['expense', 'income', 'savings'], default: 'expense' },
+                    category_name: { type: 'string', description: 'Optional category name hint' },
+                    date: { type: 'string', description: 'Date in YYYY-MM-DD format (defaults to today)' },
+                    key: { type: 'string', description: 'Optional Voice API Key' },
+                  },
+                  required: ['amount', 'note'],
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Successfully recorded',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      text: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/get_financial_summary': {
+        post: {
+          operationId: 'get_financial_summary',
+          summary: 'Get monthly financial summary and budget status',
+          description:
+            'Calculates total income, total expenses, net remaining balance, and category budget usage for a given month.',
+          parameters: [
+            {
+              name: 'key',
+              in: 'query',
+              required: false,
+              schema: { type: 'string' },
+              description: 'Personal Voice API Key',
+            },
+          ],
+          requestBody: {
+            required: false,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    month: { type: 'number', description: 'Month (1-12, defaults to current month)' },
+                    year: { type: 'number', description: 'Year (e.g. 2026, defaults to current year)' },
+                    key: { type: 'string', description: 'Optional Voice API Key' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Summary calculated',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      text: { type: 'string' },
+                      income: { type: 'number' },
+                      expense: { type: 'number' },
+                      balance: { type: 'number' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/list_recent_transactions': {
+        post: {
+          operationId: 'list_recent_transactions',
+          summary: 'List recent financial transactions',
+          description: 'Returns the most recent financial transactions with notes, amounts, dates, and category names.',
+          parameters: [
+            {
+              name: 'key',
+              in: 'query',
+              required: false,
+              schema: { type: 'string' },
+              description: 'Personal Voice API Key',
+            },
+          ],
+          requestBody: {
+            required: false,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    limit: { type: 'number', default: 10, description: 'Number of transactions to return' },
+                    type: { type: 'string', enum: ['expense', 'income', 'savings'], description: 'Filter by type' },
+                    date: { type: 'string', description: 'Filter by date (YYYY-MM-DD)' },
+                    key: { type: 'string', description: 'Optional Voice API Key' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Recent transactions list',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      text: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/list_categories': {
+        post: {
+          operationId: 'list_categories',
+          summary: 'List all categories and monthly budgets',
+          description: 'Returns all active categories and their monthly budgets in NinJahMajod.',
+          parameters: [
+            {
+              name: 'key',
+              in: 'query',
+              required: false,
+              schema: { type: 'string' },
+              description: 'Personal Voice API Key',
+            },
+          ],
+          requestBody: {
+            required: false,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    key: { type: 'string', description: 'Optional Voice API Key' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Categories list',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      text: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/delete_transaction': {
+        post: {
+          operationId: 'delete_transaction',
+          summary: 'Delete a transaction by ID',
+          description: 'Deletes a transaction by its unique transaction ID.',
+          parameters: [
+            {
+              name: 'key',
+              in: 'query',
+              required: false,
+              schema: { type: 'string' },
+              description: 'Personal Voice API Key',
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    transaction_id: { type: 'string', description: 'The unique ID of the transaction to delete' },
+                    key: { type: 'string', description: 'Optional Voice API Key' },
+                  },
+                  required: ['transaction_id'],
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Transaction deleted',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      text: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
 export async function executeMcpTool(
   context: SupabaseContext,
   name: string,
   args: Record<string, unknown>,
-): Promise<{ text: string; isError?: boolean }> {
+): Promise<{ text: string; isError?: boolean; [key: string]: unknown }> {
   const { client, userId } = context;
 
   try {
@@ -171,8 +434,12 @@ export async function executeMcpTool(
         await insertTransaction(client, userId, newTransaction);
 
         const typeEmoji = type === 'income' ? '💰' : type === 'savings' ? '🏦' : '💸';
+        const text = `${typeEmoji} บันทึกเรียบร้อย: ${note} ${amount.toLocaleString('th-TH')} บาท [หมวดหมู่: ${categoryDisplayName}] (วันที่: ${date}, ID: ${newTransaction.id})`;
         return {
-          text: `${typeEmoji} บันทึกเรียบร้อย: ${note} ${amount.toLocaleString('th-TH')} บาท [หมวดหมู่: ${categoryDisplayName}] (วันที่: ${date}, ID: ${newTransaction.id})`,
+          success: true,
+          text,
+          message: text,
+          transaction: newTransaction,
         };
       }
 
@@ -215,7 +482,15 @@ export async function executeMcpTool(
           }
         }
 
-        return { text: lines.join('\n') };
+        const text = lines.join('\n');
+        return {
+          success: true,
+          text,
+          income: totals.income,
+          expense: totals.expense,
+          balance: totals.balance,
+          savings: totals.savings,
+        };
       }
 
       case 'list_recent_transactions': {
@@ -235,7 +510,7 @@ export async function executeMcpTool(
         const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
         if (transactions.length === 0) {
-          return { text: 'ไม่พบรายการใช้จ่ายตามเงื่อนไขที่ระบุ' };
+          return { success: true, text: 'ไม่พบรายการใช้จ่ายตามเงื่อนไขที่ระบุ', transactions: [] };
         }
 
         const lines = [`📋 รายการล่าสุด ${transactions.length} รายการ:`];
@@ -245,7 +520,8 @@ export async function executeMcpTool(
           lines.push(`• [${t.date}] ${t.note}: ${sign}${t.amount.toLocaleString('th-TH')} บาท (${categoryName}) [ID: ${t.id}]`);
         }
 
-        return { text: lines.join('\n') };
+        const text = lines.join('\n');
+        return { success: true, text, transactions };
       }
 
       case 'list_categories': {
@@ -258,7 +534,8 @@ export async function executeMcpTool(
           lines.push(`• ${c.name} (${c.type})${budgetText} [ID: ${c.id}]`);
         }
 
-        return { text: lines.join('\n') };
+        const text = lines.join('\n');
+        return { success: true, text, categories: active };
       }
 
       case 'delete_transaction': {
@@ -268,7 +545,8 @@ export async function executeMcpTool(
         }
 
         await deleteTransaction(client, userId, transactionId);
-        return { text: `🗑️ ลบรายการ ID ${transactionId} เรียบร้อยแล้ว` };
+        const text = `🗑️ ลบรายการ ID ${transactionId} เรียบร้อยแล้ว`;
+        return { success: true, text };
       }
 
       default:

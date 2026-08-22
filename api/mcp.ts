@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createClient } from '@supabase/supabase-js';
+import { executeMcpTool, generateOpenApiSchema, MCP_TOOLS } from '../src/server/mcpTools';
+import { getSupabaseContext } from '../src/server/supabaseService';
 
-// 1. Types & Interfaces
 export interface VercelRequest extends IncomingMessage {
   query?: Record<string, string | string[]>;
   body?: unknown;
@@ -16,107 +16,7 @@ export interface VercelResponse extends ServerResponse {
   setHeader: (name: string, value: string | number | readonly string[]) => this;
 }
 
-export const MCP_TOOLS = [
-  {
-    name: 'record_transaction',
-    description: 'Record an expense, income, or savings transaction into NinJahMajod with smart category matching.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        amount: { type: 'number', description: 'The amount of money (e.g. 60, 150).' },
-        note: { type: 'string', description: 'Description of what was spent/earned (e.g. "food", "ข้าวมันไก่", "กาแฟ").' },
-        type: { type: 'string', enum: ['expense', 'income', 'savings'], description: 'Transaction type (default: "expense").' },
-        category_name: { type: 'string', description: 'Optional category name hint (e.g. "ค่าอาหาร").' },
-        date: { type: 'string', description: 'Date in YYYY-MM-DD format (defaults to today).' },
-      },
-      required: ['amount', 'note'],
-    },
-  },
-  {
-    name: 'get_financial_summary',
-    description: 'Get monthly totals (income, expenses, net balance) and budget usage.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        month: { type: 'number', description: 'Month (1-12).' },
-        year: { type: 'number', description: 'Year (e.g. 2026).' },
-      },
-    },
-  },
-  {
-    name: 'list_recent_transactions',
-    description: 'List recent financial transactions with notes, amounts, and categories.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        limit: { type: 'number', description: 'Number of transactions (default 10).' },
-        type: { type: 'string', enum: ['expense', 'income', 'savings'] },
-        date: { type: 'string', description: 'Filter by date (YYYY-MM-DD).' },
-      },
-    },
-  },
-  {
-    name: 'list_categories',
-    description: 'List all active categories and their monthly budgets.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-    },
-  },
-  {
-    name: 'delete_transaction',
-    description: 'Delete a transaction by its ID.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        transaction_id: { type: 'string', description: 'The ID of the transaction to delete.' },
-      },
-      required: ['transaction_id'],
-    },
-  },
-];
-
-const DEFAULT_KEYWORD_RULES = [
-  { keywords: ['อาหาร', 'ข้าว', 'food', 'lunch', 'dinner', 'breakfast', 'ก๋วยเตี๋ยว', 'ชาบู', 'หมูกระทะ', 'ข้าวมันไก่', 'kfc', 'mcdonald'], categoryNames: ['ค่าอาหาร', 'อาหาร', 'food'] },
-  { keywords: ['กาแฟ', 'ชา', 'coffee', 'cafe', 'amazon', 'starbucks', 'ชาเขียว', 'ชานม', 'latte', 'drink'], categoryNames: ['กาแฟ', 'เครื่องดื่ม', 'ค่าอาหาร', 'เซเว่น', 'food'] },
-  { keywords: ['ขนม', 'snack', 'dessert', 'เค้ก', 'ไอติม'], categoryNames: ['ขนม', 'snack', 'เซเว่น'] },
-  { keywords: ['เซเว่น', '7-11', '711', 'seven', 'lawson', 'cj'], categoryNames: ['เซเว่น', 'seven', 'ของใช้', 'ค่าอาหาร'] },
-  { keywords: ['เดินทาง', 'transport', 'bts', 'mrt', 'grab', 'bolt', 'น้ำมัน', 'ค่ารถ', 'วิน', 'แท็กซี่', 'taxi'], categoryNames: ['เดินทาง', 'ค่าเดินทาง', 'transport'] },
-  { keywords: ['ค่าห้อง', 'rent', 'หอพัก', 'คอนโด', 'ค่าเช่า', 'ค่าน้ำ', 'ค่าไฟ', 'ค่าเน็ต', 'wifi'], categoryNames: ['ค่าห้อง', 'rent'] },
-  { keywords: ['ของใช้', 'household', 'สบู่', 'ยาสีฟัน', 'ผงซักฟอก', 'ทิชชู่', 'big c', 'lotus', 'tops'], categoryNames: ['ของใช้', 'household'] },
-  { keywords: ['สุขภาพ', 'health', 'ยา', 'หมอ', 'โรงพยาบาล', 'วิตามิน', 'คลินิก'], categoryNames: ['สุขภาพ', 'health'] },
-  { keywords: ['เงินเดือน', 'salary', 'paycheck', 'โบนัส'], categoryNames: ['เงินเดือน', 'salary'] },
-  { keywords: ['เงินออม', 'savings', 'ออมเงิน', 'ลงทุน', 'หุ้น'], categoryNames: ['เงินออม', 'savings'] },
-];
-
-function matchCategory(categories: Array<{ id: string; name: string; type: string; isActive: boolean }>, note: string, categoryHint?: string, type = 'expense') {
-  const active = categories.filter((c) => c.isActive !== false);
-  if (active.length === 0) return { id: 'other', name: 'อื่นๆ' };
-
-  const pool = active.filter((c) => c.type === type || c.type === 'both');
-  const targetPool = pool.length > 0 ? pool : active;
-
-  if (categoryHint) {
-    const hint = categoryHint.trim().toLowerCase();
-    const found = targetPool.find((c) => c.name.toLowerCase() === hint || c.id.toLowerCase() === hint || c.name.toLowerCase().includes(hint));
-    if (found) return found;
-  }
-
-  const cleanNote = (note || '').trim().toLowerCase();
-  if (cleanNote) {
-    const direct = targetPool.find((c) => cleanNote.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(cleanNote));
-    if (direct) return direct;
-
-    for (const rule of DEFAULT_KEYWORD_RULES) {
-      if (rule.keywords.some((kw) => cleanNote.includes(kw.toLowerCase()))) {
-        const found = targetPool.find((c) => rule.categoryNames.some((n) => c.name.toLowerCase().includes(n.toLowerCase()) || c.id.toLowerCase() === n.toLowerCase()));
-        if (found) return found;
-      }
-    }
-  }
-
-  return targetPool.find((c) => c.name.includes('อื่น') || c.name.toLowerCase().includes('other')) || targetPool[0];
-}
+export { MCP_TOOLS };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1. CORS Headers
@@ -129,10 +29,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 2. Extract Auth Credentials
+    const host = (req.headers.host as string) || 'ninnin-in-n-out-come.vercel.app';
+    const proto = (req.headers['x-forwarded-proto'] as string) || 'https';
+    const hostUrl = `${proto}://${host}`;
+
     let queryParams: URLSearchParams | null = null;
     try {
-      if (req.url) queryParams = new URL(req.url, 'http://localhost').searchParams;
+      if (req.url) queryParams = new URL(req.url, hostUrl).searchParams;
     } catch {
       queryParams = null;
     }
@@ -142,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         body = JSON.parse(body);
       } catch {
-        // ignore JSON parse error for body
+        // ignore parse error
       }
     }
     const payload = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
@@ -159,13 +62,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       bodyKey ||
       '';
 
-    // Global Server API Key check
+    // Global Server API Key check (if configured in env)
     const expectedApiKey = process.env.MCP_API_KEY;
     if (expectedApiKey && userKey !== expectedApiKey) {
       return res.status(401).json({ error: 'Unauthorized: Invalid or missing MCP_API_KEY' });
     }
 
-    // 3. GET Request - Server Info / Discovery
+    // 2. GET Request - Returns Dual OpenAPI 3.0.0 & MCP Schema for Gemini Spark & MCP Clients
     if (req.method === 'GET') {
       const acceptHeader = String(req.headers.accept || '');
       if (acceptHeader.includes('text/event-stream')) {
@@ -179,7 +82,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
+      const openApiSchema = generateOpenApiSchema(hostUrl);
+
       return res.status(200).json({
+        ...openApiSchema,
         name: 'ninjahmajod-mcp-server',
         version: '1.0.0',
         status: 'online',
@@ -191,61 +97,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // 4. POST Request - Tool Execution
+    // 3. POST Request - Execution
     if (req.method === 'POST') {
-      // Connect to Supabase
-      const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-      const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-      if (!supabaseUrl || (!supabaseAnonKey && !serviceRoleKey)) {
-        return res.status(500).json({
-          error: 'Supabase environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) are not set in Vercel.',
-        });
-      }
-
-      const supabase = createClient(supabaseUrl, serviceRoleKey || supabaseAnonKey, {
-        auth: { persistSession: false },
-      });
-
-      // Authenticate User
-      let userId: string | null = null;
-
-      if (userKey) {
-        // Try user_api_keys table
-        const { data: keyRecord } = await supabase
-          .from('user_api_keys')
-          .select('user_id')
-          .eq('key', userKey)
-          .maybeSingle();
-
-        if (keyRecord?.user_id) {
-          userId = keyRecord.user_id;
-        } else {
-          // Try JWT token
-          const { data: userData } = await supabase.auth.getUser(userKey);
-          if (userData?.user?.id) {
-            userId = userData.user.id;
-          }
-        }
-      }
-
-      // Fallback to server env if configured
-      if (!userId && process.env.SUPABASE_USER_EMAIL && process.env.SUPABASE_USER_PASSWORD) {
-        const { data: loginData } = await supabase.auth.signInWithPassword({
-          email: process.env.SUPABASE_USER_EMAIL,
-          password: process.env.SUPABASE_USER_PASSWORD,
-        });
-        if (loginData?.user?.id) userId = loginData.user.id;
-      }
-
-      // Check method
-      const rpcMethod = (payload.method as string) || (payload.tool ? 'tools/call' : undefined);
+      // Handle MCP Protocol Discovery & Handshake before auth
+      const rpcMethod = payload.method as string | undefined;
       const id = payload.id ?? 1;
-
-      if (!rpcMethod) {
-        return res.status(400).json({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Missing method' } });
-      }
 
       if (rpcMethod === 'initialize') {
         return res.status(200).json({
@@ -267,103 +123,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ jsonrpc: '2.0', id, result: { tools: MCP_TOOLS } });
       }
 
-      // If calling a tool, require authenticated userId
-      if (!userId) {
+      // Connect to Supabase Context
+      let context;
+      try {
+        context = await getSupabaseContext({ key: userKey, token: authHeader });
+      } catch (authErr) {
+        const authMsg = authErr instanceof Error ? authErr.message : String(authErr);
         return res.status(401).json({
           jsonrpc: '2.0',
           id,
           error: {
             code: -32000,
-            message: 'Unauthorized: Invalid or missing API Key. Go to NinJahMajod Settings to generate your Voice MCP Key.',
+            message: `Unauthorized: ${authMsg}`,
           },
+          message: `Unauthorized: ${authMsg}`,
         });
       }
 
-      // Execute Tool
-      const toolName = (payload.tool as string) || (payload.params as { name?: string })?.name;
-      const toolArgs = (payload.args as Record<string, unknown>) || (payload.params as { arguments?: Record<string, unknown> })?.arguments || {};
+      // Determine Tool Name from URL path, RPC method, or payload
+      const urlPath = req.url || '';
+      let toolName = (payload.tool as string) || (payload.params as { name?: string })?.name || (payload.operationId as string);
 
-      if (toolName === 'record_transaction') {
-        const amount = Number(toolArgs.amount);
-        if (!Number.isFinite(amount) || amount <= 0) {
-          return res.status(400).json({ error: 'amount must be a positive number' });
+      if (!toolName) {
+        if (urlPath.includes('get_financial_summary') || urlPath.includes('summary')) {
+          toolName = 'get_financial_summary';
+        } else if (urlPath.includes('list_recent_transactions') || urlPath.includes('recent')) {
+          toolName = 'list_recent_transactions';
+        } else if (urlPath.includes('list_categories') || urlPath.includes('categories')) {
+          toolName = 'list_categories';
+        } else if (urlPath.includes('delete_transaction') || urlPath.includes('delete') || payload.transaction_id) {
+          toolName = 'delete_transaction';
+        } else if (typeof payload.amount === 'number' || payload.amount || payload.note) {
+          toolName = 'record_transaction';
+        } else {
+          toolName = 'record_transaction';
         }
-        const note = String(toolArgs.note || '').trim();
-        const type = (toolArgs.type as string) || 'expense';
-        const date = (toolArgs.date as string) || new Date().toISOString().slice(0, 10);
-        const categoryHint = toolArgs.category_name as string | undefined;
+      }
 
-        // Fetch user categories
-        const { data: rawCategories } = await supabase.from('categories').select('*').eq('user_id', userId);
-        const categories = (rawCategories || []).map((c: { id: string; name: string; type: string; is_active?: boolean }) => ({
-          id: c.id,
-          name: c.name,
-          type: c.type,
-          isActive: c.is_active !== false,
-        }));
+      const toolArgs: Record<string, unknown> =
+        (payload.args as Record<string, unknown>) ||
+        (payload.params as { arguments?: Record<string, unknown> })?.arguments ||
+        payload;
 
-        const matched = matchCategory(categories, note, categoryHint, type);
-        const transactionId = `mcp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      // Execute Tool via authoritative executor
+      const toolResult = await executeMcpTool(context, toolName, toolArgs);
 
-        const { error: insertError } = await supabase.from('transactions').insert({
-          id: transactionId,
-          user_id: userId,
-          type,
-          category_id: matched.id,
-          amount,
-          date,
-          note,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-
-        if (insertError) {
-          return res.status(500).json({ error: `Supabase insert failed: ${insertError.message}` });
-        }
-
-        const msg = `💸 บันทึกเรียบร้อย: ${note} ${amount.toLocaleString('th-TH')} บาท [หมวดหมู่: ${matched.name}] (วันที่: ${date})`;
-        return res.status(200).json({
+      if (toolResult.isError) {
+        return res.status(400).json({
           jsonrpc: '2.0',
           id,
-          result: { content: [{ type: 'text', text: msg }] },
-          text: msg,
+          error: { code: -32602, message: toolResult.text },
+          text: toolResult.text,
         });
       }
 
-      if (toolName === 'list_categories') {
-        const { data: categories } = await supabase.from('categories').select('*').eq('user_id', userId).order('name');
-        const lines = [`📁 หมวดหมู่ (${categories?.length || 0} หมวด):`];
-        for (const c of categories || []) {
-          lines.push(`• ${c.name} (${c.type})`);
-        }
-        const text = lines.join('\n');
-        return res.status(200).json({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text }] }, text });
-      }
-
-      if (toolName === 'list_recent_transactions') {
-        const limit = Math.min(50, Math.max(1, Number(toolArgs.limit) || 10));
-        const { data: txs } = await supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(limit);
-        const lines = [`📋 รายการล่าสุด ${txs?.length || 0} รายการ:`];
-        for (const t of txs || []) {
-          lines.push(`• [${t.date}] ${t.note}: ${t.amount.toLocaleString('th-TH')} บาท`);
-        }
-        const text = lines.join('\n');
-        return res.status(200).json({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text }] }, text });
-      }
-
-      if (toolName === 'get_financial_summary') {
-        const { data: txs } = await supabase.from('transactions').select('*').eq('user_id', userId);
-        let income = 0;
-        let expense = 0;
-        for (const t of txs || []) {
-          if (t.type === 'income') income += Number(t.amount);
-          else if (t.type === 'expense') expense += Number(t.amount);
-        }
-        const text = `📊 สรุปการเงิน: รายรับรวม ${income.toLocaleString()} บาท, รายจ่ายรวม ${expense.toLocaleString()} บาท, คงเหลือ ${ (income - expense).toLocaleString() } บาท`;
-        return res.status(200).json({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text }] }, text });
-      }
-
-      return res.status(404).json({ error: `Tool ${toolName} not found` });
+      return res.status(200).json({
+        jsonrpc: '2.0',
+        id,
+        result: { content: [{ type: 'text', text: toolResult.text }] },
+        ...toolResult,
+      });
     }
 
     return res.status(405).json({ error: `Method ${req.method} not allowed` });
