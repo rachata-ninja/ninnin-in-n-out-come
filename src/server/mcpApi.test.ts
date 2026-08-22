@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import handler, { type VercelRequest, type VercelResponse } from '../../api/mcp';
-import { MCP_TOOLS } from './mcpTools';
+import handler, { MCP_TOOLS, type VercelRequest, type VercelResponse } from '../../api/mcp';
 
 interface MockReqResResult {
   req: VercelRequest;
