@@ -1,9 +1,40 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { defaultAppData } from "./data/defaultData";
 import { STORAGE_KEY } from "./storage/appStorage";
+import { getMonthName } from "./format";
+
+/** Walks the dashboard's month stepper to a target month. */
+async function stepToMonth(
+  user: ReturnType<typeof userEvent.setup>,
+  year: number,
+  month: number,
+) {
+  for (let guard = 0; guard < 48; guard += 1) {
+    const heading = screen.getByRole("heading", { level: 1 }).textContent ?? "";
+    if (heading === `${getMonthName(month)} ${year}`) return;
+    const current = screen.getByRole("heading", { level: 1 }).textContent ?? "";
+    const targetIsLater =
+      new Date(`${year}-${String(month).padStart(2, "0")}-01`).getTime() >
+      parseHeadingMonth(current).getTime();
+    await user.click(
+      screen.getByRole("button", {
+        name: targetIsLater ? "ช่วงเวลาถัดไป" : "ช่วงเวลาก่อนหน้า",
+      }),
+    );
+  }
+  throw new Error(`could not step to ${month}/${year}`);
+}
+
+function parseHeadingMonth(heading: string): Date {
+  const [monthName, yearText] = heading.split(" ");
+  const monthIndex = Array.from({ length: 12 }, (_, i) => getMonthName(i + 1)).indexOf(
+    monthName,
+  );
+  return new Date(Number(yearText), monthIndex, 1);
+}
 
 describe("App smoke flow", () => {
   beforeEach(() => {
@@ -45,9 +76,7 @@ describe("App smoke flow", () => {
     expect(within(table).getByText("ลาเต้")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "ภาพรวม" }));
-    await user.clear(screen.getByLabelText("ปี"));
-    await user.type(screen.getByLabelText("ปี"), "2026");
-    await user.selectOptions(screen.getByLabelText("เดือน"), "5");
+    await stepToMonth(user, 2026, 5);
 
     expect(screen.getAllByText("฿7,860").length).toBeGreaterThan(0);
     expect(window.localStorage.getItem(STORAGE_KEY)).toContain("กาแฟ");
@@ -83,11 +112,9 @@ describe("App smoke flow", () => {
     expect(screen.getAllByText("ออมเงิน").length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "ภาพรวม" }));
-    await user.clear(screen.getByLabelText("ปี"));
-    await user.type(screen.getByLabelText("ปี"), "2026");
-    await user.selectOptions(screen.getByLabelText("เดือน"), "5");
+    await stepToMonth(user, 2026, 5);
 
-    expect(screen.getByText("ออมเงินทั้งหมด")).toBeInTheDocument();
+    expect(screen.getAllByText("ออมเงิน").length).toBeGreaterThan(0);
     expect(screen.getAllByText("฿2,500").length).toBeGreaterThan(0);
   });
 
@@ -96,6 +123,7 @@ describe("App smoke flow", () => {
     vi.setSystemTime(new Date(2026, 5, 10));
     const { unmount } = render(<App />);
 
+    fireEvent.click(screen.getByRole("button", { name: "ตั้งค่า" }));
     fireEvent.change(screen.getByRole("combobox", { name: "วันเงินเดือนออก" }), {
       target: { value: "25" },
     });
@@ -105,8 +133,11 @@ describe("App smoke flow", () => {
     unmount();
     render(<App />);
 
+    fireEvent.click(screen.getByRole("button", { name: "ตั้งค่า" }));
     expect(screen.getByRole("combobox", { name: "วันเงินเดือนออก" })).toHaveValue("25");
-    expect(screen.getByText("รอบเงินเดือน 25 พ.ค. - 24 มิ.ย.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "ภาพรวม" }));
+    expect(screen.getByText("รอบ 25 พ.ค. – 24 มิ.ย.")).toBeInTheDocument();
   });
 
   it("opens on the next salary month after the saved payday has passed", () => {
@@ -125,8 +156,8 @@ describe("App smoke flow", () => {
 
     render(<App />);
 
-    expect(screen.getByLabelText("เดือน")).toHaveValue("6");
-    expect(screen.getByText("รอบเงินเดือน 25 พ.ค. - 24 มิ.ย.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("มิถุนายน 2026");
+    expect(screen.getByText("รอบ 25 พ.ค. – 24 มิ.ย.")).toBeInTheDocument();
   });
 
   it("requires confirmation before deleting a transaction", async () => {
@@ -461,5 +492,64 @@ describe("App smoke flow", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("ลบไม่ได้ เพราะยังมีรายการใช้หมวดหมู่นี้อยู่");
     expect(screen.getByRole("button", { name: /แก้ไขหมวดหมู่ ค่าอาหาร/ })).toBeInTheDocument();
+  });
+
+  it("toggles theme and updates document data-theme and localStorage", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const themeToggleBtns = screen.getAllByRole("button", { name: /เปลี่ยนโหมดเป็น/ });
+    expect(themeToggleBtns.length).toBe(2); // Desktop sidebar and Mobile header
+
+    // Click desktop toggle button
+    await user.click(themeToggleBtns[0]);
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(window.localStorage.getItem("ninja-theme")).toBe("dark");
+
+    // Click mobile toggle button
+    const updatedBtns = screen.getAllByRole("button", { name: /เปลี่ยนโหมดเป็น/ });
+    await user.click(updatedBtns[1]);
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    expect(window.localStorage.getItem("ninja-theme")).toBe("light");
+  });
+
+  it("selects theme mode from settings page", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "ตั้งค่า" }));
+    expect(screen.getByRole("heading", { name: "ธีมการแสดงผล" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "มืด" }));
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(window.localStorage.getItem("ninja-theme")).toBe("dark");
+
+    await user.click(screen.getByRole("button", { name: "ระบบ" }));
+    expect(document.documentElement.getAttribute("data-theme")).toBeNull();
+    expect(window.localStorage.getItem("ninja-theme")).toBeNull();
+  });
+
+  it("opens quick capture drawer, enters amount on numpad, and records transaction into today's timeline", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const quickCaptureBtns = screen.getAllByRole("button", { name: "จดรายการด่วน" });
+    expect(quickCaptureBtns.length).toBeGreaterThan(0);
+
+    await user.click(quickCaptureBtns[0]);
+    expect(screen.getByRole("dialog", { name: "จดรายการด่วน" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "6" }));
+    await user.click(screen.getByRole("button", { name: "5" }));
+    await user.type(screen.getByLabelText("โน้ตรายการ"), "ลาเต้ด่วน");
+
+    await user.click(screen.getByRole("button", { name: /บันทึก/ }));
+
+    // The sheet plays a slide-out before it unmounts.
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "จดรายการด่วน" })).not.toBeInTheDocument(),
+    );
+    expect(screen.getAllByText("ลาเต้ด่วน").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("-฿65").length).toBeGreaterThan(0);
   });
 });

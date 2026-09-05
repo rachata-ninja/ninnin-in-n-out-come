@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { Category, Transaction } from '../types';
 import {
   calculateBudgetUsage,
+  calculateSafeToSpend,
+  calculateSpendPace,
+  splitVariableSpend,
   calculateTotals,
   filterTransactionsForList,
   filterTransactionsByPeriod,
@@ -466,5 +469,116 @@ describe('finance domain', () => {
       id: 'request-1',
       amount: 90,
     }));
+  });
+
+  it('calculates safe to spend based on remaining budget and cycle days', () => {
+    const range = { start: '2026-08-25', end: '2026-09-24' };
+    // 12 days remaining before end of cycle (from 2026-09-13 to 2026-09-24 = 12 days)
+    const result = calculateSafeToSpend(10000, 4600, 20000, range, '2026-09-13');
+
+    expect(result.daysRemaining).toBe(12);
+    expect(result.remainingPool).toBe(5400); // 10000 - 4600
+    expect(result.dailySafeToSpend).toBe(450); // 5400 / 12 = 450
+    expect(result.percentUsed).toBe(46);
+    expect(result.isOverBudget).toBe(false);
+  });
+
+  it('handles over-budget state gracefully with 0 daily safe to spend', () => {
+    const range = { start: '2026-08-25', end: '2026-09-24' };
+    const result = calculateSafeToSpend(5000, 6000, 10000, range, '2026-09-13');
+
+    expect(result.dailySafeToSpend).toBe(0);
+    expect(result.remainingPool).toBe(-1000);
+    expect(result.isOverBudget).toBe(true);
+  });
+  it('reports spending under plan when actual trails the even burn-down', () => {
+    const range = { start: '2026-09-01', end: '2026-09-30' };
+    // Day 6 of 30 => expected 25500 * 6/30 = 5100. Spent 3000, so 2100 under.
+    const result = calculateSpendPace(25500, 3000, range, '2026-09-06');
+
+    expect(result.expectedSpend).toBe(5100);
+    expect(result.delta).toBe(2100);
+    expect(result.status).toBe('under');
+  });
+
+  it('reports spending over plan when actual outruns the even burn-down', () => {
+    const range = { start: '2026-09-01', end: '2026-09-30' };
+    const result = calculateSpendPace(25500, 9000, range, '2026-09-06');
+
+    expect(result.delta).toBe(-3900);
+    expect(result.status).toBe('over');
+  });
+
+  it('treats a small difference as on-track rather than a signal', () => {
+    const range = { start: '2026-09-01', end: '2026-09-30' };
+    // Expected 5100, tolerance is 2% of 25500 = 510.
+    const result = calculateSpendPace(25500, 5000, range, '2026-09-06');
+
+    expect(result.status).toBe('on-track');
+  });
+
+  it('clamps elapsed days to the period when today is past the end', () => {
+    const range = { start: '2026-09-01', end: '2026-09-30' };
+    const result = calculateSpendPace(25500, 25500, range, '2026-10-15');
+
+    expect(result.expectedSpend).toBe(25500);
+    expect(result.status).toBe('on-track');
+  });
+
+  it('returns a neutral pace when there is no planned pool', () => {
+    const range = { start: '2026-09-01', end: '2026-09-30' };
+    const result = calculateSpendPace(0, 4000, range, '2026-09-06');
+
+    expect(result).toEqual({ expectedSpend: 0, delta: 0, status: 'on-track' });
+  });
+
+  it('excludes a fixed commitment from the variable pace pool', () => {
+    const categories = [
+      { id: 'rent', name: 'ค่าห้อง', type: 'expense' as const, color: '#000', monthlyBudget: 8000, isActive: true },
+      { id: 'food', name: 'ค่าอาหาร', type: 'expense' as const, color: '#000', monthlyBudget: 6000, isActive: true },
+    ];
+    const transactions = [
+      // One payment covering the whole rent budget — a fixed commitment.
+      { id: 'r', type: 'expense' as const, categoryId: 'rent', amount: 8000, date: '2026-09-01', note: '', createdAt: '', updatedAt: '' },
+      { id: 'f1', type: 'expense' as const, categoryId: 'food', amount: 120, date: '2026-09-02', note: '', createdAt: '', updatedAt: '' },
+      { id: 'f2', type: 'expense' as const, categoryId: 'food', amount: 80, date: '2026-09-03', note: '', createdAt: '', updatedAt: '' },
+    ];
+
+    expect(splitVariableSpend(transactions, categories)).toEqual({
+      variablePool: 6000,
+      variableSpend: 200,
+    });
+  });
+
+  it('keeps a category variable when its budget is spread over many payments', () => {
+    const categories = [
+      { id: 'food', name: 'ค่าอาหาร', type: 'expense' as const, color: '#000', monthlyBudget: 1000, isActive: true },
+    ];
+    const transactions = [
+      { id: 'a', type: 'expense' as const, categoryId: 'food', amount: 300, date: '2026-09-01', note: '', createdAt: '', updatedAt: '' },
+      { id: 'b', type: 'expense' as const, categoryId: 'food', amount: 300, date: '2026-09-02', note: '', createdAt: '', updatedAt: '' },
+    ];
+
+    expect(splitVariableSpend(transactions, categories)).toEqual({
+      variablePool: 1000,
+      variableSpend: 600,
+    });
+  });
+
+  it('does not report a rent payment on payday as being over plan', () => {
+    const categories = [
+      { id: 'rent', name: 'ค่าห้อง', type: 'expense' as const, color: '#000', monthlyBudget: 8000, isActive: true },
+      { id: 'food', name: 'ค่าอาหาร', type: 'expense' as const, color: '#000', monthlyBudget: 6000, isActive: true },
+    ];
+    const transactions = [
+      { id: 'r', type: 'expense' as const, categoryId: 'rent', amount: 8000, date: '2026-09-01', note: '', createdAt: '', updatedAt: '' },
+      { id: 'f', type: 'expense' as const, categoryId: 'food', amount: 900, date: '2026-09-02', note: '', createdAt: '', updatedAt: '' },
+    ];
+    const { variablePool, variableSpend } = splitVariableSpend(transactions, categories);
+
+    // Day 5 of 30 => expected 6000 * 5/30 = 1000 against 900 spent.
+    const pace = calculateSpendPace(variablePool, variableSpend, { start: '2026-09-01', end: '2026-09-30' }, '2026-09-05');
+
+    expect(pace.status).toBe('on-track');
   });
 });

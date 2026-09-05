@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { defaultCategories } from '../data/defaultData';
@@ -59,7 +59,7 @@ const transactions: Transaction[] = [
 ];
 
 describe('Dashboard', () => {
-  it('shows the NinJahMajod logo in the dashboard header', () => {
+  it('titles the dashboard with the selected period', () => {
     render(
       <Dashboard
         transactions={transactions}
@@ -69,10 +69,7 @@ describe('Dashboard', () => {
       />,
     );
 
-    expect(screen.getByRole('img', { name: 'NinJahMajod logo' })).toHaveAttribute(
-      'src',
-      '/assets/nin-jah-ma-jod-logo.png',
-    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('พฤษภาคม 2026');
   });
 
   it('keeps the dashboard on the monthly filter by default', () => {
@@ -85,13 +82,20 @@ describe('Dashboard', () => {
       />,
     );
 
-    expect(screen.getByLabelText('รูปแบบช่วงเวลา')).toHaveValue('month');
-    expect(screen.getByLabelText('เดือน')).toHaveValue('5');
-    expect(screen.queryByLabelText('วันที่')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('ตัวกรองช่วงเวลา')).toHaveClass('dashboard-filter-controls');
+    const periodType = screen.getByRole('group', { name: 'รูปแบบช่วงเวลา' });
+
+    expect(within(periodType).getByRole('button', { name: 'เดือน' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(periodType).getByRole('button', { name: 'วัน' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('พฤษภาคม 2026');
   });
 
-  it('groups every monthly filter field with consistent labels for responsive layout', () => {
+  it('offers exactly the three period types and no payday control', () => {
     render(
       <Dashboard
         transactions={transactions}
@@ -102,13 +106,34 @@ describe('Dashboard', () => {
       />,
     );
 
-    const filters = screen.getByLabelText('ตัวกรองช่วงเวลา');
-    const fieldLabels = within(filters).getAllByText(/^(ช่วงเวลา|เดือน|ปี|วันเงินเดือนออก)$/);
+    const periodType = screen.getByRole('group', { name: 'รูปแบบช่วงเวลา' });
 
-    expect(fieldLabels).toHaveLength(4);
-    fieldLabels.forEach((label) => {
-      expect(label.closest('label')).toHaveClass('dashboard-filter-field');
-    });
+    expect(within(periodType).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'วัน',
+      'เดือน',
+      'ปี',
+    ]);
+    // Payday is configuration; it lives in Settings now.
+    expect(screen.queryByLabelText('วันเงินเดือนออก')).not.toBeInTheDocument();
+  });
+
+  it('steps the filter a month at a time, rolling over the year', async () => {
+    const user = userEvent.setup();
+    const onFilterChange = vi.fn();
+    render(
+      <Dashboard
+        transactions={transactions}
+        categories={defaultCategories}
+        filter={{ type: 'month', year: 2026, month: 12 }}
+        onFilterChange={onFilterChange}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'ช่วงเวลาถัดไป' }));
+    expect(onFilterChange).toHaveBeenCalledWith({ type: 'month', year: 2027, month: 1 });
+
+    await user.click(screen.getByRole('button', { name: 'ช่วงเวลาก่อนหน้า' }));
+    expect(onFilterChange).toHaveBeenLastCalledWith({ type: 'month', year: 2026, month: 11 });
   });
 
   it('updates displayed totals when the month filter changes', async () => {
@@ -128,7 +153,7 @@ describe('Dashboard', () => {
     expect(screen.getAllByText('฿2,500').length).toBeGreaterThan(0);
     expect(screen.getAllByText('฿26,250').length).toBeGreaterThan(0);
 
-    await user.selectOptions(screen.getByLabelText('เดือน'), '6');
+    await user.click(screen.getByRole('button', { name: 'ช่วงเวลาถัดไป' }));
     expect(onFilterChange).toHaveBeenCalledWith({ type: 'month', year: 2026, month: 6 });
 
     rerender(
@@ -143,9 +168,7 @@ describe('Dashboard', () => {
     expect(screen.getAllByText('฿500').length).toBeGreaterThan(0);
   });
 
-  it('summarizes a monthly dashboard from the selected payday day', async () => {
-    const onPaydayDayChange = vi.fn();
-
+  it('summarizes a monthly dashboard from the configured payday day', async () => {
     render(
       <Dashboard
         transactions={[
@@ -185,17 +208,11 @@ describe('Dashboard', () => {
         filter={{ type: 'month', year: 2026, month: 5 }}
         paydayDay={25}
         onFilterChange={vi.fn()}
-        onPaydayDayChange={onPaydayDayChange}
       />,
     );
 
-    expect(screen.getByText('รอบเงินเดือน 25 เม.ย. - 24 พ.ค.')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'วันเงินเดือนออก' })).toHaveValue('25');
+    expect(screen.getByText('รอบ 25 เม.ย. – 24 พ.ค.')).toBeInTheDocument();
     expect(screen.getByLabelText('รายจ่าย ฿2,150')).toBeInTheDocument();
-
-    fireEvent.change(screen.getByRole('combobox', { name: 'วันเงินเดือนออก' }), { target: { value: '28' } });
-
-    expect(onPaydayDayChange).toHaveBeenLastCalledWith(28);
   });
 
   it('summarizes actual expenses and planned budget in the category budget panel', () => {
@@ -351,7 +368,11 @@ describe('Dashboard', () => {
       />,
     );
 
-    await user.selectOptions(screen.getByLabelText('รูปแบบช่วงเวลา'), 'day');
+    await user.click(
+      within(screen.getByRole('group', { name: 'รูปแบบช่วงเวลา' })).getByRole('button', {
+        name: 'วัน',
+      }),
+    );
     expect(onFilterChange).toHaveBeenCalledWith({ type: 'day', year: 2026, month: 5, day: 1 });
 
     rerender(
@@ -363,11 +384,11 @@ describe('Dashboard', () => {
       />,
     );
 
-    expect(screen.getByLabelText('วันที่')).toHaveValue('2026-05-02');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('2 พ.ค.');
     expect(screen.getAllByText('฿1,000').length).toBeGreaterThan(0);
     expect(screen.getByLabelText('รายรับ ฿0')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('วันที่'), { target: { value: '2026-05-03' } });
+    await user.click(screen.getByRole('button', { name: 'ช่วงเวลาถัดไป' }));
 
     expect(onFilterChange).toHaveBeenLastCalledWith({
       type: 'day',
@@ -375,5 +396,23 @@ describe('Dashboard', () => {
       month: 5,
       day: 3,
     });
+  });
+
+  it('displays the safe to spend card and remaining daily allowance', () => {
+    render(
+      <Dashboard
+        transactions={transactions}
+        categories={defaultCategories}
+        filter={{ type: 'month', year: 2026, month: 5 }}
+        paydayDay={25}
+        onFilterChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('งบใช้จ่ายรายวัน')).toBeInTheDocument();
+    expect(screen.getByText('ใช้ได้สบาย')).toBeInTheDocument();
+    expect(screen.getByText('เหลือใช้วันละ')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'ความคืบหน้าการใช้งบประมาณเดือน' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'รายการวันนี้' })).toBeInTheDocument();
   });
 });

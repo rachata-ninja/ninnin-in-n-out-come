@@ -32,7 +32,7 @@ function expectedCurrentPaydayPeriod(paydayDay: number): string {
   const filter = getMonthlyFilterForDate(new Date(), paydayDay);
   const range = getMonthlyPeriodRange(filter.year, filter.month, paydayDay);
 
-  return `รอบเงินเดือน ${formatDateWithoutYear(range.start)} - ${formatDateWithoutYear(range.end)}`;
+  return `รอบ ${formatDateWithoutYear(range.start)} – ${formatDateWithoutYear(range.end)}`;
 }
 
 vi.mock('./storage/supabaseClient', () => ({
@@ -70,7 +70,7 @@ describe('App Supabase flow', () => {
 
     await user.click(screen.getByRole('button', { name: 'ใช้บนเครื่องนี้' }));
 
-    expect(screen.getByRole('heading', { name: 'ภาพรวมเงินสด' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('shows account sync errors and notices with accessible status roles', async () => {
@@ -160,7 +160,6 @@ describe('App Supabase flow', () => {
     render(<App />);
 
     expect(await screen.findByText('demo@example.com')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'วันเงินเดือนออก' })).toHaveValue('25');
     expect(screen.getByText(expectedCurrentPaydayPeriod(25))).toBeInTheDocument();
   });
 });

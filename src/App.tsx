@@ -1,14 +1,19 @@
 import {
   Bot,
+  CalendarClock,
   ChevronDown,
   Download,
   LayoutDashboard,
   ListPlus,
   LogOut,
+  Monitor,
+  Moon,
   Pencil,
+  Plus,
   RotateCcw,
   Save,
   Settings,
+  Sun,
   Tags,
   Trash2,
   Upload,
@@ -17,6 +22,7 @@ import {
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import type { ChangeEvent, ElementType, FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { QuickCaptureModal } from "./components/QuickCaptureModal";
 import { TransactionForm } from "./components/TransactionForm";
 import { defaultAppData } from "./data/defaultData";
 import {
@@ -59,6 +65,7 @@ import { Dashboard } from "./components/Dashboard";
 import { ConfirmDialog } from "./components/ui/ConfirmDialog";
 
 type Page = "dashboard" | "transactions" | "categories" | "settings";
+type ThemeMode = "light" | "dark" | "system";
 type SyncState =
   | { mode: "checking" }
   | { mode: "local" }
@@ -66,6 +73,36 @@ type SyncState =
   | { mode: "remote"; client: SupabaseClient; session: Session };
 
 const appLogoPath = "/assets/nin-jah-ma-jod-logo.png";
+const LOCAL_MODE_KEY = "ninja-local-mode";
+
+/**
+ * The welcome screen used to reappear on every reload because the "use this
+ * device" choice was never written down. It is a first-run screen now.
+ */
+function hasChosenLocalMode(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(LOCAL_MODE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberLocalMode(): void {
+  try {
+    window.localStorage.setItem(LOCAL_MODE_KEY, "1");
+  } catch {
+    /* private mode — the gate just shows again next launch */
+  }
+}
+
+function forgetLocalMode(): void {
+  try {
+    window.localStorage.removeItem(LOCAL_MODE_KEY);
+  } catch {
+    /* nothing to clean up */
+  }
+}
 
 const navItems: Array<{ page: Page; label: string; icon: ElementType }> = [
   { page: "dashboard", label: "ภาพรวม", icon: LayoutDashboard },
@@ -88,16 +125,57 @@ export default function App() {
   const [filter, setFilter] = useState<PeriodFilter>(() =>
     getMonthlyFilterForDate(new Date(), data.settings.paydayDay),
   );
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") return "system";
+    const saved = localStorage.getItem("ninja-theme");
+    return saved === "light" || saved === "dark" || saved === "system"
+      ? saved
+      : "system";
+  });
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
+    if (typeof window !== "undefined" && window.matchMedia) {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    return false;
+  });
+  const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setSystemPrefersDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "system") {
+      root.removeAttribute("data-theme");
+      localStorage.removeItem("ninja-theme");
+    } else {
+      root.setAttribute("data-theme", theme);
+      localStorage.setItem("ninja-theme", theme);
+    }
+  }, [theme]);
+
+  const isDark = theme === "system" ? systemPrefersDark : theme === "dark";
+
+  function toggleTheme() {
+    setTheme(isDark ? "light" : "dark");
+  }
+
   const [syncState, setSyncState] = useState<SyncState>(() => {
     const client = getSupabaseClient();
-    return client ? { mode: "checking" } : { mode: "local" };
+    if (!client) return { mode: "local" };
+    return hasChosenLocalMode() ? { mode: "local" } : { mode: "checking" };
   });
   const [syncError, setSyncError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const client = getSupabaseClient();
-    if (!client) {
+    if (!client || hasChosenLocalMode()) {
       return;
     }
     const supabaseClient = client;
@@ -151,6 +229,7 @@ export default function App() {
         if (!isMounted) return;
         setSyncError("");
         if (session) {
+          forgetLocalMode();
           setSyncState({ mode: "remote", client: supabaseClient, session });
           void loadSignedInData(session.user.id);
         } else {
@@ -371,6 +450,7 @@ export default function App() {
         errorMessage={syncError}
         onUseLocal={() => {
           setSyncError("");
+          rememberLocalMode();
           setSyncState({ mode: "local" });
         }}
       />
@@ -386,6 +466,16 @@ export default function App() {
             <strong>NinJahMajod</strong>
             <small>รายรับรายจ่าย</small>
           </div>
+        </div>
+        <div className="sidebar-quick-action">
+          <button
+            type="button"
+            className="sidebar-quick-btn"
+            onClick={() => setIsQuickCaptureOpen(true)}
+          >
+            <Plus size={18} />
+            <span>จดรายการด่วน</span>
+          </button>
         </div>
         <nav aria-label="หน้าหลัก">
           {navItems.map((item) => {
@@ -404,6 +494,17 @@ export default function App() {
             );
           })}
         </nav>
+        <div className="sidebar-footer">
+          <button
+            className="theme-toggle-button"
+            type="button"
+            aria-label={`เปลี่ยนโหมดเป็น ${isDark ? "สว่าง" : "มืด"}`}
+            onClick={toggleTheme}
+          >
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            <span>{isDark ? "โหมดสว่าง" : "โหมดมืด"}</span>
+          </button>
+        </div>
         {syncState.mode === "remote" && (
           <div className="sync-panel" aria-label="สถานะการ sync">
             <small>Supabase</small>
@@ -421,6 +522,20 @@ export default function App() {
       </aside>
 
       <main className="content">
+        <header className="mobile-header" aria-label="แถบสถานะ NinJahMajod">
+          <div className="mobile-brand">
+            <img className="brand-logo" src={appLogoPath} alt="NinJahMajod logo" />
+            <span className="mobile-app-name">NinJahMajod</span>
+          </div>
+          <button
+            className="icon-button mobile-theme-button"
+            type="button"
+            aria-label={`เปลี่ยนโหมดเป็น ${isDark ? "สว่าง" : "มืด"}`}
+            onClick={toggleTheme}
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </header>
         {(syncError || isSaving) && (
           <div
             className={syncError ? "sync-banner error" : "sync-banner"}
@@ -436,7 +551,6 @@ export default function App() {
             filter={filter}
             paydayDay={data.settings.paydayDay}
             onFilterChange={setFilter}
-            onPaydayDayChange={updatePaydayDay}
           />
         )}
         {activePage === "transactions" && (
@@ -462,6 +576,8 @@ export default function App() {
         {activePage === "settings" && (
           <SettingsPage
             data={data}
+            theme={theme}
+            onThemeChange={setTheme}
             syncAccount={
               syncState.mode === "remote"
                 ? {
@@ -474,9 +590,27 @@ export default function App() {
             }
             onImport={importData}
             onReset={resetDemoData}
+            paydayDay={data.settings.paydayDay}
+            onPaydayDayChange={updatePaydayDay}
           />
         )}
+        <button
+          type="button"
+          className="fab-quick-capture"
+          aria-label="จดรายการด่วน"
+          onClick={() => setIsQuickCaptureOpen(true)}
+        >
+          <Plus size={20} />
+          <span>จดรายการ</span>
+        </button>
       </main>
+
+      <QuickCaptureModal
+        isOpen={isQuickCaptureOpen}
+        categories={data.categories}
+        onClose={() => setIsQuickCaptureOpen(false)}
+        onSubmit={addTransaction}
+      />
     </div>
   );
 }
@@ -712,7 +846,6 @@ function TransactionsPage({
     <section className="page-stack" aria-label="รายการ">
       <div className="toolbar">
         <div>
-          <p className="eyebrow">Transactions</p>
           <h1>บันทึกรายรับรายจ่าย</h1>
         </div>
       </div>
@@ -840,24 +973,24 @@ function TransactionsPage({
           </div>
         </details>
         <div className="table-wrap">
-          <table>
+          <table role="table">
             <thead>
-              <tr>
-                <th>วันที่</th>
-                <th>ประเภท</th>
-                <th>หมวดหมู่</th>
-                <th>โน้ต</th>
-                <th className="amount-column">จำนวนเงิน</th>
-                <th aria-label="จัดการ" />
+              <tr role="row">
+                <th role="columnheader">วันที่</th>
+                <th role="columnheader">ประเภท</th>
+                <th role="columnheader">หมวดหมู่</th>
+                <th role="columnheader">โน้ต</th>
+                <th role="columnheader" className="amount-column">จำนวนเงิน</th>
+                <th role="columnheader" aria-label="จัดการ" />
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {visibleTransactions.map((transaction) => {
                 const category = categoryById.get(transaction.categoryId);
                 if (editingTransactionId === transaction.id) {
                   return (
-                    <tr className="transaction-edit-row" key={transaction.id}>
-                      <td colSpan={6}>
+                    <tr role="row" className="transaction-edit-row" key={transaction.id}>
+                      <td role="cell" colSpan={6}>
                         <EditTransactionForm
                           categories={categories}
                           transaction={transaction}
@@ -873,14 +1006,14 @@ function TransactionsPage({
                 }
 
                 return (
-                  <tr className="transaction-card-row" key={transaction.id}>
-                    <td data-label="วันที่">{formatDate(transaction.date)}</td>
-                    <td className="transaction-type-cell" data-label="ประเภท">
+                  <tr role="row" className="transaction-card-row" key={transaction.id}>
+                    <td role="cell" data-label="วันที่">{formatDate(transaction.date)}</td>
+                    <td role="cell" className="transaction-type-cell" data-label="ประเภท">
                       <span className={`type-pill ${transaction.type}`}>
                         {getTransactionTypeLabel(transaction.type)}
                       </span>
                     </td>
-                    <td className="transaction-category-cell" data-label="หมวดหมู่">
+                    <td role="cell" className="transaction-category-cell" data-label="หมวดหมู่">
                       <span className="transaction-category-value">
                         <span
                           className="category-dot"
@@ -889,16 +1022,17 @@ function TransactionsPage({
                         <span>{category?.name ?? "ไม่พบหมวดหมู่"}</span>
                       </span>
                     </td>
-                    <td className="transaction-note-cell" data-label="โน้ต">
+                    <td role="cell" className="transaction-note-cell" data-label="โน้ต">
                       {transaction.note || "-"}
                     </td>
                     <td
+                      role="cell"
                       data-label="จำนวนเงิน"
                       className={`amount-column ${transaction.type}`}
                     >
                       {formatCurrency(transaction.amount)}
                     </td>
-                    <td className="transaction-action-cell" data-label="จัดการ">
+                    <td role="cell" className="transaction-action-cell" data-label="จัดการ">
                       {pendingDeleteId === transaction.id ? (
                         <div
                           className="confirm-actions"
@@ -1182,7 +1316,6 @@ function CategoriesPage({
     <section className="page-stack categories-page" aria-label="หมวดหมู่">
       <div className="toolbar">
         <div>
-          <p className="eyebrow">หมวดหมู่และงบ</p>
           <h1>หมวดหมู่และงบประมาณ</h1>
         </div>
       </div>
@@ -1425,11 +1558,17 @@ function CategoryForm({
 
 function SettingsPage({
   data,
+  theme,
+  onThemeChange,
   syncAccount,
   onImport,
   onReset,
+  paydayDay,
+  onPaydayDayChange,
 }: {
   data: AppData;
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
   syncAccount: {
     email: string;
     client?: SupabaseClient;
@@ -1438,6 +1577,8 @@ function SettingsPage({
   } | null;
   onImport: (data: AppData) => void | Promise<void>;
   onReset: () => void | Promise<void>;
+  paydayDay: number;
+  onPaydayDayChange: (paydayDay: number) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState("");
@@ -1518,12 +1659,66 @@ function SettingsPage({
     <section className="page-stack" aria-label="ตั้งค่า">
       <div className="toolbar">
         <div>
-          <p className="eyebrow">ตั้งค่า</p>
           <h1>จัดการข้อมูล</h1>
         </div>
       </div>
 
       <div className="settings-grid">
+        <article className="panel setting-card">
+          <CalendarClock size={24} />
+          <h2>วันเงินเดือนออก</h2>
+          <p>ใช้กำหนดรอบเดือนของคุณ ยอด "เหลือใช้วันละ" จะคิดตามรอบนี้</p>
+          <label className="setting-field">
+            <span>เงินเดือนออกวันที่</span>
+            <select
+              aria-label="วันเงินเดือนออก"
+              value={paydayDay}
+              onChange={(event) => {
+                const nextDay = Number(event.target.value);
+                if (!Number.isFinite(nextDay)) return;
+                onPaydayDayChange(nextDay);
+              }}
+            >
+              {Array.from({ length: 31 }, (_, index) => index + 1).map((day) => (
+                <option key={day} value={day}>
+                  วันที่ {day}
+                </option>
+              ))}
+            </select>
+          </label>
+        </article>
+
+        <article className="panel setting-card">
+          <Sun size={24} />
+          <h2>ธีมการแสดงผล</h2>
+          <p>เลือกโหมดสีของแอปพลิเคชัน (ตามระบบ, โหมดสว่าง, หรือโหมดมืด)</p>
+          <div className="segmented theme-mode-control" aria-label="เลือกธีม">
+            <button
+              type="button"
+              className={theme === "system" ? "active" : ""}
+              onClick={() => onThemeChange("system")}
+            >
+              <Monitor size={16} />
+              ระบบ
+            </button>
+            <button
+              type="button"
+              className={theme === "light" ? "active" : ""}
+              onClick={() => onThemeChange("light")}
+            >
+              <Sun size={16} />
+              สว่าง
+            </button>
+            <button
+              type="button"
+              className={theme === "dark" ? "active" : ""}
+              onClick={() => onThemeChange("dark")}
+            >
+              <Moon size={16} />
+              มืด
+            </button>
+          </div>
+        </article>
         <article className="panel setting-card">
           <Download size={24} />
           <h2>สำรองข้อมูล JSON</h2>
