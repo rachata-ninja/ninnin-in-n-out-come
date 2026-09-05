@@ -400,15 +400,50 @@ export function Dashboard({
 
       <div className="panel">
         <h2>งบประมาณรายหมวด</h2>
-        <div className="budget-summary" aria-label="สรุปงบประมาณรายหมวด">
-          <div aria-label={`รายจ่ายจริง ${formatCurrency(budgetSummary.actual)}`}>
-            <span>รายจ่ายจริง</span>
-            <strong>{formatCurrency(budgetSummary.actual)}</strong>
+        <div className="budget-overview" aria-label="สรุปงบประมาณรายหมวด">
+          <div className="budget-overview-figures">
+            <div aria-label={`รายจ่ายจริง ${formatCurrency(budgetSummary.actual)}`}>
+              <span>ใช้ไปแล้ว</span>
+              <strong>{formatCurrency(budgetSummary.actual)}</strong>
+            </div>
+            <div
+              className="budget-overview-remaining"
+              aria-label={`เหลือ ${formatCurrency(Math.max(0, budgetSummary.planned - budgetSummary.actual))}`}
+            >
+              <span>เหลือ</span>
+              <strong>
+                {formatCurrency(Math.max(0, budgetSummary.planned - budgetSummary.actual))}
+              </strong>
+            </div>
+            <div aria-label={`งบประมาณการ ${formatCurrency(budgetSummary.planned)}`}>
+              <span>งบทั้งหมด</span>
+              <strong>{formatCurrency(budgetSummary.planned)}</strong>
+            </div>
           </div>
-          <div aria-label={`งบประมาณการ ${formatCurrency(budgetSummary.planned)}`}>
-            <span>งบประมาณการ</span>
-            <strong>{formatCurrency(budgetSummary.planned)}</strong>
+
+          {/* One stacked bar showing how the whole budget is divided up, so the
+              panel leads with a picture rather than a column of numbers. */}
+          <div className="budget-stack" aria-hidden="true">
+            {sortedBudgetUsage
+              .filter((item) => item.amount > 0)
+              .map((item) => (
+                <span
+                  key={item.category.id}
+                  className="budget-stack-part"
+                  style={{
+                    width: `${budgetSummary.planned > 0 ? (item.amount / budgetSummary.planned) * 100 : 0}%`,
+                    background: item.category.color,
+                  }}
+                  title={`${item.category.name} ${formatCurrency(item.amount)}`}
+                />
+              ))}
           </div>
+          <p className="budget-overview-caption">
+            ใช้ไป {budgetSummary.planned > 0
+              ? Math.round((budgetSummary.actual / budgetSummary.planned) * 100)
+              : 0}
+            % ของงบทั้งหมด
+          </p>
         </div>
         <div className="budget-list">
           {sortedBudgetUsage.map((item) => {
@@ -424,7 +459,14 @@ export function Dashboard({
             return (
               <div className="budget-row" key={item.category.id} data-testid="budget-row">
                 <div className="budget-row-head">
-                  <strong>{item.category.name}</strong>
+                  <span className="budget-row-name">
+                    <span
+                      className="category-dot"
+                      style={{ backgroundColor: item.category.color }}
+                      aria-hidden="true"
+                    />
+                    <strong>{item.category.name}</strong>
+                  </span>
                   <span>
                     {formatCurrency(item.amount)} / {formatCurrency(item.budget)}
                   </span>
